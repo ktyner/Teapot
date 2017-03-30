@@ -1,0 +1,9 @@
+#  This is a sample material library for the teapot. 
+newmtl look
+Ka 0.00 0.00 0.00 
+Kd 1.00 0.80 0.70
+Ks 0.15 0.15 0.15
+Ns 60.0
+map_Kd bubble_color.ppm
+map_normal fieldstoneN.ppm
+
