@@ -11,21 +11,31 @@
 #include <stdbool.h>
 #include <fcntl.h>
 
-typedef struct vector3f {
-	float x, y, z;
-} Vector3f;
+int vertexCount, texCount, faceCount;
+GLuint *faces;
 
-typedef struct vector2f {
-	float x, y;
-} Vector2f;
+int createViewVolume() {
+  glEnable(GL_DEPTH_TEST);
 
-typedef struct face {
-	int indices[12];
-} Face;
+  // Specify shape and size of the view volume.
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity(); //load identity matrix into GL_PROJECTION
+  gluPerspective(45.0, 1.0, 0.1, 20.0);
+
+  // Specify the position for the view volume
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+  gluLookAt(0.0, 0.5, -3.0,  // eye xyz,
+            0.0, 0.5, 0.0,  // view xyz,
+            0.0, 1.0, 0.0); // up xyz
+  return 0;
+}
 
 void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+	glDrawElements(GL_QUADS, faceCount*12, GL_UNSIGNED_INT, faces);
 	glFlush();
 }
 
@@ -47,12 +57,7 @@ void input(unsigned char key, int x, int y)
 
 void loadTeapot(const char *objFile)
 {
-	int vertexCount = 0, texCount = 0;
-
-	Vector3f *vertices, *normals, *tangents, *bitangents;
-	Vector2f *textureCoords;
-
-	Face *faces;
+	GLfloat *vertices, *normals, *tangents, *bitangents, *textureCoords;
 
 	char *data;
 
@@ -69,17 +74,20 @@ void loadTeapot(const char *objFile)
 		else if (line[0]+line[1] == 'v'+'t') 
 		{
 			texCount++;
+		} else if (line[0] == 'f') {
+			faceCount++;
 		}
 	}
+
 	rewind(file);
 
 	// Allocate memory for storing all data from file
-	vertices = malloc(sizeof(Vector3f) * vertexCount);
-	normals = malloc(sizeof(Vector3f) * vertexCount);
-	tangents = malloc(sizeof(Vector3f) * vertexCount);
-	bitangents = malloc(sizeof(Vector3f) * vertexCount);
-	faces = malloc(sizeof(Face) * vertexCount); // |faces| == |vertices|
-	textureCoords = malloc(sizeof(Vector2f) * texCount);
+	vertices = (GLfloat *)malloc(sizeof(GLfloat) * vertexCount * 3);
+	normals = (GLfloat *)malloc(sizeof(GLfloat) * vertexCount * 3);
+	tangents = (GLfloat *)malloc(sizeof(GLfloat) * vertexCount * 3);
+	bitangents = (GLfloat *)malloc(sizeof(GLfloat) * vertexCount * 3);
+	faces = (GLuint *)malloc(sizeof(GLuint) * faceCount * 12); // |faces| == |vertices|
+	textureCoords = (GLfloat *)malloc(sizeof(GLfloat) * texCount * 2);
 
 	// Reset to use as index
 	int currentVertex = 0, currentTexCoord = 0, currentNormal = 0;
@@ -96,32 +104,32 @@ void loadTeapot(const char *objFile)
 			{
 				case 't':
 					data = strtok(line, " ");
-					textureCoords[currentTexCoord].x = atof(strtok(NULL, " "));
-					textureCoords[currentTexCoord++].y = atof(strtok(NULL, " "));
+					textureCoords[currentTexCoord++] = atof(strtok(NULL, " "));
+					textureCoords[currentTexCoord++] = atof(strtok(NULL, " "));
 					break;
 				case 'x':
 					data = strtok(line, " ");
-					tangents[currentTangent].x = atof(strtok(NULL, " "));
-					tangents[currentTangent].y = atof(strtok(NULL, " "));
-					tangents[currentTangent++].z = atof(strtok(NULL, " "));
+					tangents[currentTangent++] = atof(strtok(NULL, " "));
+					tangents[currentTangent++] = atof(strtok(NULL, " "));
+					tangents[currentTangent++] = atof(strtok(NULL, " "));
 					break;
 				case 'y':
 					data = strtok(line, " ");
-					bitangents[currentBiTangent].x = atof(strtok(NULL, " "));
-					bitangents[currentBiTangent].y = atof(strtok(NULL, " "));
-					bitangents[currentBiTangent++].z = atof(strtok(NULL, " "));
+					bitangents[currentBiTangent++] = atof(strtok(NULL, " "));
+					bitangents[currentBiTangent++] = atof(strtok(NULL, " "));
+					bitangents[currentBiTangent++] = atof(strtok(NULL, " "));
 					break;
 				case 'n':
 					data = strtok(line, " ");
-					normals[currentNormal].x = atof(strtok(NULL, " "));
-					normals[currentNormal].y = atof(strtok(NULL, " "));
-					normals[currentNormal++].z = atof(strtok(NULL, " "));
+					normals[currentNormal++] = atof(strtok(NULL, " "));
+					normals[currentNormal++] = atof(strtok(NULL, " "));
+					normals[currentNormal++] = atof(strtok(NULL, " "));
 					break;
 				case ' ':
 					data = strtok(line, " ");
-					vertices[currentVertex].x = atof(strtok(NULL, " "));
-					vertices[currentVertex].y = atof(strtok(NULL, " "));
-					vertices[currentVertex++].z = atof(strtok(NULL, " "));
+					vertices[currentVertex++] = atof(strtok(NULL, " "));
+					vertices[currentVertex++] = atof(strtok(NULL, " "));
+					vertices[currentVertex++] = atof(strtok(NULL, " "));
 					break;
 				default:
 					break;
@@ -131,11 +139,12 @@ void loadTeapot(const char *objFile)
 		{
 			strtok(line, " ");
 			int i = 0;			
-			while (data = strtok(NULL, " /"))
+			while (i < 12)
 			{
-				faces[currentFace].indices[i++] = atof(data);
+				data = strtok(NULL, " /");
+				faces[currentFace++] = atof(data);
+				i++;
 			}
-			currentFace++;
 		}
 		else
 		{
@@ -149,8 +158,9 @@ void loadTeapot(const char *objFile)
 		}
 	}
 	fclose(file);
+	glVertexPointer(3, GL_FLOAT, 0, vertices);
 
-	
+	glEnableClientState(GL_VERTEX_ARRAY);
 }
 
 int main(int argc, char **argv) 
@@ -161,7 +171,10 @@ int main(int argc, char **argv)
 	glutInitWindowPosition(1000, 200);
 	glutCreateWindow("Hopefully a teapot");
 	glClearColor(1.0, 0.0, 0.7, 1.0);
-
+	
+	printf("Creating view volume\n");
+	createViewVolume();
+	printf("Loading teapot\n");
 	loadTeapot("teapot.605.obj");
 	
 	glutDisplayFunc(display);
