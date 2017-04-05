@@ -28,9 +28,14 @@ int createViewVolume() {
   // Specify the position for the view volume
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-  gluLookAt(0.0, 1.5, -3.0,  // eye xyz,
+  /*gluLookAt(0.0, 1.5, -3.0,  // eye xyz,
             0.0, 1.5, 3.0,  // view xyz,
             0.0, 1.0, 0.0); // up xyz
+	*/
+
+	gluLookAt(0.0, 0.0, -4.0,
+			  0.0, 0.0, 0.0,
+			  0.0, 1.0, 0.0);
   return 0;
 }
 
@@ -144,12 +149,16 @@ void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBOID[0]);
-	glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, NULL+0);
-
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBOID[0]);
+	//glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, NULL+0);
+	//printf("Bind buffer...\n");
 	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBOID[1]);
 	//glDrawElements(GL_QUADS, faceCount*12, GL_UNSIGNED_INT, NULL+0);
-	glDrawElements(GL_QUADS, faceCount*12, GL_UNSIGNED_INT, faces);
+	glEnableClientState(GL_COLOR_ARRAY);
+	printf("Drawing elements...\n");
+	glDisableClientState(GL_COLOR_ARRAY);
+	glDrawElements(GL_QUADS, faceCount*3, GL_UNSIGNED_INT, faces);
+	printf("Elements should be drawn\n");
 	glFlush();
 }
 
@@ -250,7 +259,7 @@ void loadTeapot(const char *objFile)
 			faceCount++;
 		}
 	}
-
+	printf("Rewinding File...\n");
 	rewind(file);
 
 	// Allocate memory for storing all data from file
@@ -264,6 +273,8 @@ void loadTeapot(const char *objFile)
 	// Reset to use as index
 	int currentVertex = 0, currentTexCoord = 0, currentNormal = 0;
 	int currentTangent = 0, currentBiTangent = 0, currentFace = 0;
+
+	int maxIndex = 0;
 	
 	// Parse File
 	while (fgets(line, sizeof(line), file))
@@ -314,7 +325,11 @@ void loadTeapot(const char *objFile)
 			while (i < 12)
 			{
 				data = strtok(NULL, " /");
-				faces[currentFace++] = atof(data);
+				int element = atoi(data);
+				if (element > maxIndex) {
+					maxIndex = element;
+				}
+				faces[currentFace++] = atoi(data);
 				i++;
 			}
 		}
@@ -329,20 +344,23 @@ void loadTeapot(const char *objFile)
 			}
 		}
 	}
+
+	printf("%d\n", maxIndex);
+
+	printf("Finished. Closing file...\n");
 	fclose(file);
-/*
-	glGenBuffers(1, &vertexVBOID[1]);
+	/*
 	glBindBuffer(GL_ARRAY_BUFFER, vertexVBOID[1]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 	glVertexPointer(3, GL_FLOAT, 3*sizeof(GLfloat), NULL+0);
 
-	glGenBuffers(1, &indexVBOID[1]);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBOID[1]);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(faces), faces, GL_STATIC_DRAW);
-*/
-	
+	*/
 	glVertexPointer(3, GL_FLOAT, 0, vertices);
+	glNormalPointer(GL_FLOAT, 0, normals);
+	printf("Put data in GPU\n");
 }
 
 void init(int argc, char **argv)
@@ -357,6 +375,9 @@ void init(int argc, char **argv)
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_COLOR_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
+
+	glGenBuffers(2, &indexVBOID[0]);
+	glGenBuffers(2, &vertexVBOID[0]);
 }
 
 int main(int argc, char **argv) 
@@ -369,8 +390,8 @@ int main(int argc, char **argv)
 	printf("Loading teapot\n");
 	loadTeapot("teapot.605.obj");
 
-	printf("Creating box\n");
-	loadBox();
+	//printf("Creating box\n");
+	//loadBox();
 
 	printf("Creating Lighting\n");
 	createLights();
@@ -387,3 +408,4 @@ int main(int argc, char **argv)
 
 	glutMainLoop();
 }
+
