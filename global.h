@@ -26,7 +26,6 @@ typedef struct data {
 } SceneData;
 
 SceneData sceneData;
-int vaoID[2];
 int vertexVBO[2];
 int normalVBO[2];
 int indexVBO[2];

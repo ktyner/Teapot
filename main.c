@@ -24,7 +24,6 @@ void init(int argc, char **argv)
 	glEnable(GL_DEPTH_TEST);
 
 	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
 }
 
@@ -122,6 +121,9 @@ void loadTeapot(const char *objFile)
 		} else {
 
 		}
+
+		//glVertexPointer(3, GL_FLOAT, 0, sceneData.teapot.vertices);
+		//glNormalPointer(GL_FLOAT, 0, sceneData.teapot.normals);
 
 		/* We don't need to free normals or texCoords because the O.S. handles
 		   this automatically when using malloc. It causes a double free segfault
@@ -244,11 +246,22 @@ void loadBox(float dx, float dy, float dz)
 void display() 
 {
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
-	glBindVertexArray(vaoID[0]);
+	
+	// Load box data into GPU
+	glVertexPointer(3, GL_FLOAT, 0, sceneData.box.vertices);
+	glColorPointer(3, GL_FLOAT, 0, sceneData.box.colors);
+	glNormalPointer(GL_FLOAT, 0, sceneData.box.normals);
+	glEnableClientState(GL_COLOR_ARRAY);
 	glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, sceneData.box.indices);
-	glBindVertexArray(0);
 
+	// Load teapot data into GPU
+	glVertexPointer(3, GL_FLOAT, 0, sceneData.teapot.vertices);
+	glNormalPointer(GL_FLOAT, 0, sceneData.teapot.normals);
+	glDisableClientState(GL_COLOR_ARRAY);
+	glTranslatef(0.0, -1.0, 0.0);
+	glRotatef(30.0, 0.0, 1.0, 0.0);
+	glScalef(0.5, 0.5, 0.5);
+	glDrawElements(GL_QUADS, sceneData.teapot.curIndex, GL_UNSIGNED_INT, sceneData.teapot.indices);
 	glFlush();
 }
 void update() {}
@@ -262,7 +275,7 @@ int createLights() {
   float light0_ambient[] = { 0.3, 0.3, 0.3, 0.0 };
   float light0_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
   float light0_specular[] = { 1.0, 0.4, 1.3, 1.0 };
-  float light0_position[] = { 0.0, 0.0, 0.0, 1.0 };
+  float light0_position[] = { 0.0, 0.8, 0.0, 1.0 };
   float light0_direction[] = { 0.0, 0.0, 0.0, 1.0 };
 
   // Turn off scene default ambient.
@@ -296,14 +309,8 @@ int createViewVolume() {
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
   
-gluLookAt(0.0, 0.0, -3.0,
-		    0.0, 0.0, 0.0,
-		    0.0, 1.0, 0.0);
-/*
-gluLookAt(2.0, 2.0, -4.0,
-		    0.0, 0.0, 0.0,
-		    0.0, 1.0, 0.0);
-*/
+  gluLookAt(/*position*/0.0, 0.0, -3.0,/*viewpoint*/ 0.0, 0.0, 0.0,/*up*/ 0.0, 1.0, 0.0);
+
   return 0;
 }
 
@@ -370,12 +377,8 @@ unsigned int loadShaders(char *vertexShaderName, char *fragmentShaderName)
 	return p;
 }
 
-void createVAOs()
+void createVBOs()
 {
-	glGenVertexArrays(2, vaoID);
-	// Box
-	glBindVertexArray(vaoID[0]);
-
 	// Generate ALL VBOs that will be used.
 	glGenBuffers(2, vertexVBO);
 	glGenBuffers(2, normalVBO);
@@ -385,30 +388,7 @@ void createVAOs()
 	glGenBuffers(1, &bitangentVBO);
 	glGenBuffers(1, &colorVBO);
 
-	glEnableVertexAttribArray(0);
-	glEnableVertexAttribArray(1);
-	glEnableVertexAttribArray(2);
-
-	glBindBuffer(GL_ARRAY_BUFFER, vertexVBO[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(sceneData.box.vertices), sceneData.box.vertices, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glBindAttribLocation(boxShaderProgramID, 0, "in_position");
-	
-	glBindBuffer(GL_ARRAY_BUFFER, normalVBO[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(sceneData.box.normals), sceneData.box.normals, GL_STATIC_DRAW);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, 0, 0);
-	glBindAttribLocation(boxShaderProgramID, 1, "in_normal");
-
-	glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(sceneData.box.colors), sceneData.box.colors, GL_STATIC_DRAW);
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glBindAttribLocation(boxShaderProgramID, 2, "in_color");
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBO[0]);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sceneData.box.indices), 
-		sceneData.box.indices, GL_STATIC_DRAW);
-
-	glBindVertexArray(0);
+	// This is where we will bind buffer data...having issues with it at the moment
 }
 
 int main(int argc, char **argv) 
@@ -430,8 +410,8 @@ int main(int argc, char **argv)
 	printf("Loading Shaders...\n");
 	boxShaderProgramID = loadShaders("boxShader.vert", "boxShader.frag");
 
-	printf("Creating VAOs...\n");
-	createVAOs();
+	//printf("Creating VAOs...\n");
+	//createVBOs();
 
 	glutDisplayFunc(display);
 	glutIdleFunc(update);
