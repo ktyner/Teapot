@@ -8,8 +8,8 @@ varying vec4 colorAttribute;
 
 void main()
 {
-	colorAttribute = in_color;
-	ec_vnormal = gl_NormalMatrix*in_normal;
-	ec_vposition = gl_ModelViewMatrix*in_position;
-	gl_Position = gl_ProjectionMatrix*gl_ModelViewMatrix*in_position;
+	colorAttribute = gl_Color;
+	ec_vnormal = gl_NormalMatrix*gl_Normal;
+	ec_vposition = gl_ModelViewMatrix*gl_Position;
+	gl_Position = gl_ProjectionMatrix*gl_ModelViewMatrix*gl_Position;
 }
