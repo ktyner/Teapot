@@ -11,32 +11,250 @@
 #include <stdbool.h>
 #include <fcntl.h>
 
-int vertexCount, texCount, faceCount;
-GLuint *faces;
-int boxShaderProgram;
+#include "global.h"
 
-int vertexVBOID[2], indexVBOID[2];
+void init(int argc, char **argv)
+{
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_RGBA|GLUT_DEPTH|GLUT_MULTISAMPLE);
+	glutInitWindowSize(768, 768);
+	glutInitWindowPosition(1000, 200);
+	glutCreateWindow("Hopefully a teapot");
+	glClearColor(1.0, 0.0, 0.7, 1.0);
+	glEnable(GL_DEPTH_TEST);
 
-int createViewVolume() {
-  glEnable(GL_DEPTH_TEST);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+}
 
-  // Specify shape and size of the view volume.
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity(); //load identity matrix into GL_PROJECTION
-  gluPerspective(45.0, 1.0, 0.1, 20.0);
+void loadTeapot(const char *objFile)
+{
+	FILE *file = fopen(objFile, "r");
+	char line[256];
+	char *lineData;
 
-  // Specify the position for the view volume
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
-  /*gluLookAt(0.0, 1.5, -3.0,  // eye xyz,
-            0.0, 1.5, 3.0,  // view xyz,
-            0.0, 1.0, 0.0); // up xyz
-	*/
+	int vertexCount = 0, texCount = 0;
 
-	gluLookAt(0.0, 0.0, -4.0,
-			  0.0, 0.0, 0.0,
-			  0.0, 1.0, 0.0);
-  return 0;
+	while (fgets(line, sizeof(line), file))
+	{
+		if (line[0]+line[1] == 'v'+' ')
+		{
+			vertexCount++;
+		}
+		else if (line[0]+line[1] == 'v'+'t') 
+		{
+			texCount++;
+		}
+	}
+
+	Vector3f *normals;
+	Vector2f *texCoords;
+	int nindex = 0, texindex = 0;
+
+	normals = malloc(sizeof(Vector3f) * vertexCount);
+	texCoords = malloc(sizeof(Vector2f) * texCount);
+	sceneData.teapot.vertices = malloc(sizeof(Vector3f) * vertexCount);
+	sceneData.teapot.normals = malloc(sizeof(Vector3f) * vertexCount);
+	sceneData.teapot.tangents = malloc(sizeof(Vector3f) * vertexCount);
+	sceneData.teapot.bitangents = malloc(sizeof(Vector3f) * vertexCount);
+	sceneData.teapot.texCoords = malloc(sizeof(Vector2f) * texCount);
+	sceneData.teapot.indices = malloc(sizeof(GLuint) * vertexCount * 4);
+
+	rewind(file);
+
+	while (fgets(line, sizeof(line), file))
+	{
+		if (line[0] == '#') continue;
+		if (line[0] == 'v') {
+			switch(line[1]) {
+				case ' ':
+					lineData = strtok(line, " ");
+					Vector3f vertex = {atof(strtok(NULL, " ")),
+									   atof(strtok(NULL, " ")), 
+									   atof(strtok(NULL, " "))};
+					sceneData.teapot.vertices[sceneData.teapot.curV++] = vertex;
+					break;
+				case 'n':
+					lineData = strtok(line, " ");
+					Vector3f normal = {atof(strtok(NULL, " ")),
+									   atof(strtok(NULL, " ")), 
+									   atof(strtok(NULL, " "))};
+					normals[nindex++] = normal;
+					break;
+				case 't':
+					lineData = strtok(line, " ");
+					Vector2f texCoord = {atof(strtok(NULL, " ")),
+										 atof(strtok(NULL, " "))};
+					texCoords[texindex++] = texCoord;
+					break;
+				case 'x':
+					lineData = strtok(line, " ");
+					Vector3f tangent = {atof(strtok(NULL, " ")),
+									    atof(strtok(NULL, " ")), 
+									    atof(strtok(NULL, " "))};
+					sceneData.teapot.tangents[sceneData.teapot.curT++] = tangent;
+					break;
+				case 'y':
+					lineData = strtok(line, " ");
+					Vector3f bitangent = {atof(strtok(NULL, " ")),
+									      atof(strtok(NULL, " ")), 
+									      atof(strtok(NULL, " "))};
+					sceneData.teapot.bitangents[sceneData.teapot.curB++] = bitangent;
+					break;
+				default:
+					break;
+			}	
+		} else if (line[0] == 'f') {
+			lineData = strtok(line, " ");
+			int i;
+			for (i = 0; i < 4; i++) {
+				lineData = strtok(NULL, " /");
+				int currentVertexPointer = atoi(lineData)-1;
+				sceneData.teapot.indices[sceneData.teapot.curIndex++] = currentVertexPointer;
+				lineData = strtok(NULL, " /");
+				Vector2f currentTex = texCoords[atoi(lineData)-1];
+				sceneData.teapot.texCoords[currentVertexPointer] = currentTex;
+				lineData = strtok(NULL, " /");
+				Vector3f currentNormal = normals[atoi(lineData)-1];
+				sceneData.teapot.normals[currentVertexPointer] = currentNormal;
+			}
+		} else {
+
+		}
+
+		/* We don't need to free normals or texCoords because the O.S. handles
+		   this automatically when using malloc. It causes a double free segfault
+		   if we try to free here. */
+	}
+}
+
+/*
+	dx - width
+	dy - height
+	dz - depth
+*/
+void loadBox(float dx, float dy, float dz)
+{
+	dx /= 2.0;
+	dy /= 2.0;
+	dz /= 2.0;
+	Vector3f vertices[] = 
+	{
+		// Back Face
+		{	-dx,  dy,  dz	},
+		{ 	 dx,  dy,  dz	},
+		{	 dx, -dy,  dz	},
+		{	-dx, -dy,  dz	},
+		// Right Face
+		{	-dx,  dy, -dz	},
+		{	-dx,  dy,  dz	},
+		{	-dx, -dy,  dz	},
+		{	-dx, -dy, -dz	},
+		// Left Face
+		{	 dx,  dy, -dz	},
+		{	 dx,  dy,  dz	},
+		{	 dx, -dy,  dz	},
+		{	 dx, -dy, -dz	},
+		// Top Face
+		{	-dx,  dy,  dz	},
+		{	 dx,  dy,  dz	},
+		{	 dx,  dy, -dz	},
+		{	-dx,  dy, -dz	},
+		// Bottom Face
+		{	-dx, -dy,  dz	},
+		{	 dx, -dy,  dz	},
+		{	 dx, -dy, -dz	},
+		{	-dx, -dy, -dz	}
+	};
+
+	Vector3f normals[] =
+	{
+		// Back Face
+		{	 0.0,  0.0, -1.0	},
+		{	 0.0,  0.0, -1.0	},
+		{	 0.0,  0.0, -1.0	},
+		{	 0.0,  0.0, -1.0	},
+		// Right Face
+		{	 1.0,  0.0,  0.0	},
+		{	 1.0,  0.0,  0.0	},
+		{	 1.0,  0.0,  0.0	},
+		{	 1.0,  0.0,  0.0	},
+		// Left Face
+		{	-1.0,  0.0,  0.0	},
+		{	-1.0,  0.0,  0.0	},
+		{	-1.0,  0.0,  0.0	},
+		{	-1.0,  0.0,  0.0	},
+		// Top Face
+		{	 0.0, -1.0,  0.0	},
+		{	 0.0, -1.0,  0.0	},
+		{	 0.0, -1.0,  0.0	},
+		{	 0.0, -1.0,  0.0	},
+		// Bottom Face
+		{	 0.0,  1.0,  0.0	},
+		{	 0.0,  1.0,  0.0	},
+		{	 0.0,  1.0,  0.0	},
+		{	 0.0,  1.0,  0.0	}
+	};
+
+	Vector3f colors[] = 
+	{
+		// Back Face
+		{	 1.0,  1.0,  1.0	},
+	 	{	 1.0,  1.0,  1.0	},
+		{	 1.0,  1.0,  1.0	},
+		{	 1.0,  1.0,  1.0	},
+		// Right Face
+		{	 0.0,  1.0,  0.0	},
+	 	{	 0.0,  1.0,  0.0	},
+		{	 0.0,  1.0,  0.0	},
+		{	 0.0,  1.0,  0.0	},
+		// Left Face
+		{	 1.0,  0.0,  0.0	},
+	 	{	 1.0,  0.0,  0.0	},
+		{	 1.0,  0.0,  0.0	},
+		{	 1.0,  0.0,  0.0	},
+		// Top Face
+		{	 1.0,  1.0,  1.0	},
+	 	{	 1.0,  1.0,  1.0	},
+		{	 1.0,  1.0,  1.0	},
+		{	 1.0,  1.0,  1.0	},
+		// Bottom Face
+		{	 1.0,  1.0,  1.0	},
+	 	{	 1.0,  1.0,  1.0	},
+		{	 1.0,  1.0,  1.0	},
+		{	 1.0,  1.0,  1.0	}
+	};
+	
+	sceneData.box.vertices = malloc(sizeof(Vector3f) * 20);
+	sceneData.box.colors = malloc(sizeof(Vector3f) * 20);
+	sceneData.box.normals = malloc(sizeof(Vector3f) * 20);
+	sceneData.box.indices = malloc(sizeof(GLubyte) * 20);
+
+	int i;
+	for (i = 0; i < 20; i++)
+	{
+		sceneData.box.vertices[i] = vertices[i];
+		sceneData.box.colors[i] = colors[i];
+		sceneData.box.normals[i] = normals[i];
+		sceneData.box.indices[i] = i;
+	}
+}
+
+void display() 
+{
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+	glBindVertexArray(vaoID[0]);
+	glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, sceneData.box.indices);
+	glBindVertexArray(0);
+
+	glFlush();
+}
+void update() {}
+void input(unsigned char key, int x, int y) 
+{
+	if (key) exit(0);
 }
 
 int createLights() {
@@ -44,7 +262,7 @@ int createLights() {
   float light0_ambient[] = { 0.3, 0.3, 0.3, 0.0 };
   float light0_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
   float light0_specular[] = { 1.0, 0.4, 1.3, 1.0 };
-  float light0_position[] = { 0.0, 1.5, 0.0, 1.0 };
+  float light0_position[] = { 0.0, 0.0, 0.0, 1.0 };
   float light0_direction[] = { 0.0, 0.0, 0.0, 1.0 };
 
   // Turn off scene default ambient.
@@ -65,19 +283,28 @@ int createLights() {
   glLightfv(GL_LIGHT0,GL_SPOT_DIRECTION,light0_direction);
 
   glEnable(GL_LIGHT0);
-  //glEnable(GL_LIGHTING);
   return 0;
 }
 
-void set_material()
-{
-	float mat_diffuse[] = {1.0, 1.0, 1.0,1.0};
-	float mat_specular[] = {0.9,0.9,0.9,1.0};
-	float mat_shininess[] = {85.0};
+int createViewVolume() {
+  // Specify shape and size of the view volume.
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity(); //load identity matrix into GL_PROJECTION
+  gluPerspective(45.0, 1.0, 0.1, 20.0);
 
-	glMaterialfv(GL_FRONT,GL_DIFFUSE,mat_diffuse);
-	glMaterialfv(GL_FRONT,GL_SPECULAR,mat_specular);
-	glMaterialfv(GL_FRONT,GL_SHININESS,mat_shininess);
+  // Specify the position for the view volume
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+  
+gluLookAt(0.0, 0.0, -3.0,
+		    0.0, 0.0, 0.0,
+		    0.0, 1.0, 0.0);
+/*
+gluLookAt(2.0, 2.0, -4.0,
+		    0.0, 0.0, 0.0,
+		    0.0, 1.0, 0.0);
+*/
+  return 0;
 }
 
 char *readShader(char *filename)
@@ -116,7 +343,6 @@ void debugShaderProgram(int id)
 
 unsigned int loadShaders(char *vertexShaderName, char *fragmentShaderName) 
 {
-	int result = -1;
 	char *vs, *fs;
 	GLuint p;
 	GLuint vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
@@ -144,257 +370,69 @@ unsigned int loadShaders(char *vertexShaderName, char *fragmentShaderName)
 	return p;
 }
 
-
-void display()
+void createVAOs()
 {
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	glGenVertexArrays(2, vaoID);
+	// Box
+	glBindVertexArray(vaoID[0]);
+
+	// Generate ALL VBOs that will be used.
+	glGenBuffers(2, vertexVBO);
+	glGenBuffers(2, normalVBO);
+	glGenBuffers(2, indexVBO);
+	glGenBuffers(1, &texCoordVBO);
+	glGenBuffers(1, &tangentVBO);
+	glGenBuffers(1, &bitangentVBO);
+	glGenBuffers(1, &colorVBO);
+
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vertexVBO[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(sceneData.box.vertices), sceneData.box.vertices, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glBindAttribLocation(boxShaderProgramID, 0, "in_position");
 	
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBOID[0]);
-	//glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, NULL+0);
-	//printf("Bind buffer...\n");
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBOID[1]);
-	//glDrawElements(GL_QUADS, faceCount*12, GL_UNSIGNED_INT, NULL+0);
-	glEnableClientState(GL_COLOR_ARRAY);
-	printf("Drawing elements...\n");
-	glDisableClientState(GL_COLOR_ARRAY);
-	glDrawElements(GL_QUADS, faceCount*4, GL_UNSIGNED_INT, faces);
-	printf("Elements should be drawn\n");
-	glFlush();
-}
+	glBindBuffer(GL_ARRAY_BUFFER, normalVBO[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(sceneData.box.normals), sceneData.box.normals, GL_STATIC_DRAW);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_TRUE, 0, 0);
+	glBindAttribLocation(boxShaderProgramID, 1, "in_normal");
 
-void update()
-{
-	
-}
+	glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(sceneData.box.colors), sceneData.box.colors, GL_STATIC_DRAW);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glBindAttribLocation(boxShaderProgramID, 2, "in_color");
 
-void input(unsigned char key, int x, int y)
-{
-	switch(key) 
-	{
-		case 'q':
-			exit(0);
-		default:
-			break;
-	}
-}
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBO[0]);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sceneData.box.indices), 
+		sceneData.box.indices, GL_STATIC_DRAW);
 
-void loadBox()
-{
-	GLfloat vertices[] =
-	{
-		// Positions		// Colors			// Normals
-		//Back face
-		-1.5, 3.0, 3.0, 	1.0, 1.0, 1.0,		0.0, 0.0, -1.0,
-		1.5, 3.0, 3.0, 		1.0, 1.0, 1.0,		0.0, 0.0, -1.0,
-		1.5, 0.0, 3.0, 		1.0, 1.0, 1.0,		0.0, 0.0, -1.0,
-		-1.5, 0.0, 3.0, 	1.0, 1.0, 1.0,		0.0, 0.0, -1.0,
-
-		//Right face
-		-1.5, 3.0, -3.0, 	0.0, 1.0, 0.0,		1.0, 0.0, 0.0,
-		-1.5, 3.0, 3.0, 	0.0, 1.0, 0.0,		1.0, 0.0, 0.0,
-		-1.5, 0.0, 3.0, 	0.0, 1.0, 0.0,		1.0, 0.0, 0.0,
-		-1.5, 0.0, -3.0, 	0.0, 1.0, 0.0,		1.0, 0.0, 0.0,
-		
-		//Left face
-		1.5, 3.0, -3.0, 	1.0, 0.0, 0.0,		-1.0, 0.0, 0.0,
-		1.5, 3.0, 3.0, 		1.0, 0.0, 0.0,		-1.0, 0.0, 0.0,
-		1.5, 0.0, 3.0, 		1.0, 0.0, 0.0,		-1.0, 0.0, 0.0,
-		1.5, 0.0, -3.0, 	1.0, 0.0, 0.0,		-1.0, 0.0, 0.0,
-
-		//Top face
-		-1.5, 3.0, 3.0, 	1.0, 1.0, 1.0,		0.0, -1.0, 0.0,
-		1.5, 3.0, 3.0, 		1.0, 1.0, 1.0,		0.0, -1.0, 0.0,
-		1.5, 3.0, -3.0, 	1.0, 1.0, 1.0,		0.0, -1.0, 0.0,
-		-1.5, 3.0, -3.0, 	1.0, 1.0, 1.0,		0.0, -1.0, 0.0,
-
-		//Bottom face
-		-1.5, 0.0, 3.0, 	1.0, 1.0, 1.0,		0.0, 1.0, 0.0,
-		1.5, 0.0, 3.0, 		1.0, 1.0, 1.0,		0.0, 1.0, 0.0,
-		1.5, 0.0, -3.0, 	1.0, 1.0, 1.0,		0.0, 1.0, 0.0,
-		-1.5, 0.0, -3.0, 	1.0, 1.0, 1.0,		0.0, 1.0, 0.0
-	};
-
-	GLubyte face[] =
-	{
-		0, 1, 2, 3,
-		4, 5, 6, 7,
-		8, 9, 10, 11,
-		12, 13, 14, 15,
-		16, 17, 18, 19
-	};
-
-	glGenBuffers(1, &vertexVBOID[0]);
-	glBindBuffer(GL_ARRAY_BUFFER, vertexVBOID[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	
-	glVertexPointer(3, GL_FLOAT, 9*sizeof(GLfloat), NULL+0);
-	glColorPointer(3, GL_FLOAT, 9*sizeof(GLfloat), NULL+12);
-	glNormalPointer(GL_FLOAT, 9*sizeof(GLfloat), NULL+24);
-
-	glGenBuffers(1, &indexVBOID[0]);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBOID[0]);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(face), face, GL_STATIC_DRAW);
-}
-
-void loadTeapot(const char *objFile)
-{
-	GLfloat *vertices, *normals, *tangents, *bitangents, *textureCoords;
-
-	char *data;
-
-	FILE *file = fopen(objFile, "r");
-	char line[256];
-
-	// Obtain vertexCount and faceCount
-	while (fgets(line, sizeof(line), file))
-	{
-		if (line[0]+line[1] == 'v'+' ')
-		{
-			vertexCount++;
-		}
-		else if (line[0]+line[1] == 'v'+'t') 
-		{
-			texCount++;
-		} else if (line[0] == 'f') {
-			faceCount++;
-		}
-	}
-	printf("Rewinding File...\n");
-	rewind(file);
-
-	// Allocate memory for storing all data from file
-	vertices = (GLfloat *)malloc(sizeof(GLfloat) * vertexCount * 3);
-	normals = (GLfloat *)malloc(sizeof(GLfloat) * vertexCount * 3);
-	tangents = (GLfloat *)malloc(sizeof(GLfloat) * vertexCount * 3);
-	bitangents = (GLfloat *)malloc(sizeof(GLfloat) * vertexCount * 3);
-	faces = (GLuint *)malloc(sizeof(GLuint) * faceCount * 4); // |faces| == |vertices|
-	textureCoords = (GLfloat *)malloc(sizeof(GLfloat) * texCount * 2);
-
-	// Reset to use as index
-	int currentVertex = 0, currentTexCoord = 0, currentNormal = 0;
-	int currentTangent = 0, currentBiTangent = 0, currentFace = 0;
-	
-	// Parse File
-	while (fgets(line, sizeof(line), file))
-	{
-		if (line[0] == '#') continue;
-
-		if (line[0] == 'v')
-		{
-			switch (line[1])
-			{
-				case 't':
-					data = strtok(line, " ");
-					textureCoords[currentTexCoord++] = atof(strtok(NULL, " "));
-					textureCoords[currentTexCoord++] = atof(strtok(NULL, " "));
-					break;
-				case 'x':
-					data = strtok(line, " ");
-					tangents[currentTangent++] = atof(strtok(NULL, " "));
-					tangents[currentTangent++] = atof(strtok(NULL, " "));
-					tangents[currentTangent++] = atof(strtok(NULL, " "));
-					break;
-				case 'y':
-					data = strtok(line, " ");
-					bitangents[currentBiTangent++] = atof(strtok(NULL, " "));
-					bitangents[currentBiTangent++] = atof(strtok(NULL, " "));
-					bitangents[currentBiTangent++] = atof(strtok(NULL, " "));
-					break;
-				case 'n':
-					data = strtok(line, " ");
-					normals[currentNormal++] = atof(strtok(NULL, " "));
-					normals[currentNormal++] = atof(strtok(NULL, " "));
-					normals[currentNormal++] = atof(strtok(NULL, " "));
-					break;
-				case ' ':
-					data = strtok(line, " ");
-					vertices[currentVertex++] = atof(strtok(NULL, " "));
-					vertices[currentVertex++] = atof(strtok(NULL, " "));
-					vertices[currentVertex++] = atof(strtok(NULL, " "));
-					break;
-				default:
-					break;
-			}
-		} 
-		else if (line[0] == 'f') 
-		{
-			strtok(line, " ");
-			int i = 0;			
-			while (i < 4)
-			{
-				data = strtok(NULL, "/");
-				faces[currentFace++] = atoi(data)-1;
-				strtok(NULL, " ");
-				i++;
-			}
-		}
-		else
-		{
-			char *mtlFile = strtok(line, " ");
-			if (strstr(mtlFile, "mtllib"))
-			{
-				mtlFile = strtok(NULL, " \n");
-				
-				// Process mtlFile here
-			}
-		}
-	}
-
-	printf("Finished. Closing file...\n");
-	fclose(file);
-	/*
-	glBindBuffer(GL_ARRAY_BUFFER, vertexVBOID[1]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	glVertexPointer(3, GL_FLOAT, 3*sizeof(GLfloat), NULL+0);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexVBOID[1]);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(faces), faces, GL_STATIC_DRAW);
-	*/
-	glVertexPointer(3, GL_FLOAT, 0, vertices);
-	glNormalPointer(GL_FLOAT, 0, normals);
-	printf("Put data in GPU\n");
-}
-
-void init(int argc, char **argv)
-{
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGBA|GLUT_DEPTH|GLUT_MULTISAMPLE);
-	glutInitWindowSize(768, 768);
-	glutInitWindowPosition(1000, 200);
-	glutCreateWindow("Hopefully a teapot");
-	glClearColor(1.0, 0.0, 0.7, 1.0);
-
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_COLOR_ARRAY);
-	glEnableClientState(GL_NORMAL_ARRAY);
-
-	glGenBuffers(2, &indexVBOID[0]);
-	glGenBuffers(2, &vertexVBOID[0]);
+	glBindVertexArray(0);
 }
 
 int main(int argc, char **argv) 
 {
 	init(argc, argv);
-	
-	printf("Creating view volume\n");
+
+	printf("Creating View Volume...\n");
 	createViewVolume();
 
-	printf("Loading teapot\n");
+	printf("Creating Lights...\n");
+	createLights();
+	
+	printf("Loading Teapot...\n");
 	loadTeapot("teapot.605.obj");
 
-	//printf("Creating box\n");
-	//loadBox();
+	printf("Loading Box...\n");
+	loadBox(2.0, 2.0, 2.0);
 
-	printf("Creating Lighting\n");
-	createLights();
+	printf("Loading Shaders...\n");
+	boxShaderProgramID = loadShaders("boxShader.vert", "boxShader.frag");
 
-	printf("Creating materials\n");
-	set_material();
+	printf("Creating VAOs...\n");
+	createVAOs();
 
-	printf("Creating shaders\n");
-	boxShaderProgram = loadShaders("boxShader.vert", "boxShader.frag");
-	
 	glutDisplayFunc(display);
 	glutIdleFunc(update);
 	glutKeyboardFunc(input);
