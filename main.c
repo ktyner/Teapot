@@ -451,6 +451,10 @@ int main(int argc, char **argv)
 	printf("Loading Shaders...\n");
 	boxShaderProgramID = loadShaders("boxShader.vert", "boxShader.frag");
 
+	Vector3f a = {9.0, 2.0, 7.0};
+	Vector3f b = {4.0, 8.0, 10.0};
+	printf("Dot: %f\n",  dot(a, b));
+
 	glutDisplayFunc(renderScene);
 	glutIdleFunc(update);
 	glutKeyboardFunc(input);

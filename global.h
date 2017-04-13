@@ -1,12 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
-typedef struct vector3f {
-	GLfloat x, y, z;
-} Vector3f;
-
-typedef struct vector2f {
-	GLfloat x, y;
-} Vector2f;
+#include "vector.h"
+#include "matrix.h"
 
 typedef struct teapot {
 	int curV, curN, curT, curB, curTex, curIndex;
@@ -24,15 +19,6 @@ typedef struct data {
 	BoxData box;
 	TeapotData teapot;
 } SceneData;
-
-Vector3f normalize(Vector3f vec)
-{
-	float mag = sqrt(pow(vec.x, 2) + pow(vec.y, 2) + pow(vec.z, 2));
-	vec.x /= mag;
-	vec.y /= mag;
-	vec.z /= mag;
-	return vec;
-}
 
 SceneData sceneData;
 unsigned int boxShaderProgramID;
