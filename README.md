@@ -12,3 +12,5 @@ Cornell Box with a Teapot inside
 8. ...
 
 ## Current Image (.png)
+
+![alt tag](https://github.com/ktyner/Teapot/blob/master/currentTeapot.png?raw=true)
