@@ -25,14 +25,17 @@ typedef struct data {
 	TeapotData teapot;
 } SceneData;
 
+Vector3f normalize(Vector3f vec)
+{
+	float mag = sqrt(pow(vec.x, 2) + pow(vec.y, 2) + pow(vec.z, 2));
+	vec.x /= mag;
+	vec.y /= mag;
+	vec.z /= mag;
+	return vec;
+}
+
 SceneData sceneData;
-int vertexVBO[2];
-int normalVBO[2];
-int indexVBO[2];
-int texCoordVBO;
-int tangentVBO;
-int bitangentVBO;
-int colorVBO;
 unsigned int boxShaderProgramID;
+float teapotRotation = 0.0;
 
 #endif

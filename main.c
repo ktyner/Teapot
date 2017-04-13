@@ -10,13 +10,16 @@
 #include <string.h>
 #include <stdbool.h>
 #include <fcntl.h>
+#include <math.h>
 
 #include "global.h"
+
+#define PI 3.14159265359
 
 void init(int argc, char **argv)
 {
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGBA|GLUT_DEPTH|GLUT_MULTISAMPLE);
+	glutInitDisplayMode(GLUT_RGBA|GLUT_DEPTH|GLUT_MULTISAMPLE|GLUT_ACCUM|GLUT_DOUBLE);
 	glutInitWindowSize(768, 768);
 	glutInitWindowPosition(1000, 200);
 	glutCreateWindow("Hopefully a teapot");
@@ -258,11 +261,14 @@ void display()
 	glVertexPointer(3, GL_FLOAT, 0, sceneData.teapot.vertices);
 	glNormalPointer(GL_FLOAT, 0, sceneData.teapot.normals);
 	glDisableClientState(GL_COLOR_ARRAY);
-	glTranslatef(0.0, -1.0, 0.0);
-	glRotatef(30.0, 0.0, 1.0, 0.0);
-	glScalef(0.5, 0.5, 0.5);
-	glDrawElements(GL_QUADS, sceneData.teapot.curIndex, GL_UNSIGNED_INT, sceneData.teapot.indices);
-	glFlush();
+
+	// Stores the current matrix configuration to allow for local transformations
+	glPushMatrix();
+		glTranslatef(0.0, -1.0, 0.0);
+		glRotatef(30.0, 0.0, 1.0, 0.0);
+		glScalef(0.5, 0.5, 0.5);
+		glDrawElements(GL_QUADS, sceneData.teapot.curIndex, GL_UNSIGNED_INT, sceneData.teapot.indices);
+	glPopMatrix();
 }
 void update() {}
 void input(unsigned char key, int x, int y) 
@@ -270,12 +276,12 @@ void input(unsigned char key, int x, int y)
 	if (key) exit(0);
 }
 
-int createLights() {
+int createLights(Vector3f pos, Vector3f color) {
   // Fill light
   float light0_ambient[] = { 0.3, 0.3, 0.3, 0.0 };
-  float light0_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
-  float light0_specular[] = { 1.0, 0.4, 1.3, 1.0 };
-  float light0_position[] = { 0.0, 0.8, 0.0, 1.0 };
+  float light0_diffuse[] = { color.x, color.y, color.z, 1.0 };
+  float light0_specular[] = { color.x, color.y, color.z, 1.0 };
+  float light0_position[] = { pos.x, pos.y, pos.z, 1.0 };
   float light0_direction[] = { 0.0, 0.0, 0.0, 1.0 };
 
   // Turn off scene default ambient.
@@ -377,18 +383,56 @@ unsigned int loadShaders(char *vertexShaderName, char *fragmentShaderName)
 	return p;
 }
 
-void createVBOs()
+float phi(int b, int i)
 {
-	// Generate ALL VBOs that will be used.
-	glGenBuffers(2, vertexVBO);
-	glGenBuffers(2, normalVBO);
-	glGenBuffers(2, indexVBO);
-	glGenBuffers(1, &texCoordVBO);
-	glGenBuffers(1, &tangentVBO);
-	glGenBuffers(1, &bitangentVBO);
-	glGenBuffers(1, &colorVBO);
+	float x, f;
+	x = 0.0;
+	f = 1.0/(float)b;
+	while (i) {
+		x += f * (float)(i%b);
+		i /= b;
+		f *= 1.0 / (float)b;
+	}
+	return x;
+}
 
-	// This is where we will bind buffer data...having issues with it at the moment
+Vector3f halton(int i)
+{
+	float az, el;
+	Vector3f result;
+	
+	az = 2.0*PI*phi(2, i);
+	el = asin(phi(3, i));
+	result.x = -sin(az)*cos(el);
+	result.y = sin(el);
+	result.z = cos(az)*cos(el);
+	return result;
+}
+
+void renderScene()
+{
+	int N = 100;
+	glClear(GL_ACCUM_BUFFER_BIT);
+
+	// Fill half of the accumulation buffer with the main light
+	Vector3f lightPosition = {0.0, 0.8, 0.0};
+	Vector3f lightColor = {1.0, 1.0, 1.0};
+	createLights(lightPosition, lightColor);
+	display();
+	glAccum(GL_ACCUM, 0.5);
+
+	// Fill the other half with the global illumination
+	int i = 1;
+	for (i = 0; i < N; i++)
+	{
+		Vector3f currentRay = normalize(halton(i));
+		Vector3f color = {1.0, 1.0, 1.0};
+		createLights(currentRay, color);
+		display();
+		glAccum(GL_ACCUM, 1.0/(float)N/2.0);
+	}
+	glAccum(GL_RETURN, 1.0);
+	glutSwapBuffers();
 }
 
 int main(int argc, char **argv) 
@@ -398,9 +442,6 @@ int main(int argc, char **argv)
 	printf("Creating View Volume...\n");
 	createViewVolume();
 
-	printf("Creating Lights...\n");
-	createLights();
-	
 	printf("Loading Teapot...\n");
 	loadTeapot("teapot.605.obj");
 
@@ -410,10 +451,7 @@ int main(int argc, char **argv)
 	printf("Loading Shaders...\n");
 	boxShaderProgramID = loadShaders("boxShader.vert", "boxShader.frag");
 
-	//printf("Creating VAOs...\n");
-	//createVBOs();
-
-	glutDisplayFunc(display);
+	glutDisplayFunc(renderScene);
 	glutIdleFunc(update);
 	glutKeyboardFunc(input);
 
