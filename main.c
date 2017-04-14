@@ -25,6 +25,8 @@ void init(int argc, char **argv)
 	glutCreateWindow("Hopefully a teapot");
 	glClearColor(1.0, 0.0, 0.7, 1.0);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
@@ -158,14 +160,14 @@ void loadBox(float dx, float dy, float dz)
 		{	-dx, -dy, -dz	},
 		// Left Face
 		{	 dx,  dy, -dz	},
-		{	 dx,  dy,  dz	},
-		{	 dx, -dy,  dz	},
 		{	 dx, -dy, -dz	},
+		{	 dx, -dy,  dz	},
+		{	 dx,  dy,  dz	},
 		// Top Face
 		{	-dx,  dy,  dz	},
-		{	 dx,  dy,  dz	},
-		{	 dx,  dy, -dz	},
 		{	-dx,  dy, -dz	},
+		{	 dx,  dy, -dz	},
+		{	 dx,  dy,  dz	},
 		// Bottom Face
 		{	-dx, -dy,  dz	},
 		{	 dx, -dy,  dz	},
@@ -409,27 +411,73 @@ Vector3f halton(int i)
 	return result;
 }
 
+Vector3f getRayTriangleIntersectionPoint(Vector3f p, Vector3f d, Vector3f v0, Vector3f v1, Vector3f v2)
+{
+	Vector3f result;
+	Vector3f top = sub(p, d);
+	Vector3f mid = sub(v1, v0);
+	Vector3f bot = sub(v2, v0);
+	Vector3f right = sub(p, v0);
+
+	Matrix3f mat = createMatrix(top, mid, bot);
+
+	mat = invertAndTranspose(mat);
+	result = multiplyVector(mat, right);
+
+	if (result.x < 0.0) {
+		Vector3f null = {1000.0, 1000.0, 1000.0};
+		return null;
+	}
+
+	result = add(add(mul(v0, (1.0 - result.y - result.z)), mul(v1, result.y)), mul(v2, result.z));
+	
+	return result;
+}
+
 void renderScene()
 {
 	int N = 100;
 	glClear(GL_ACCUM_BUFFER_BIT);
 
 	// Fill half of the accumulation buffer with the main light
-	Vector3f lightPosition = {0.0, 0.8, 0.0};
-	Vector3f lightColor = {1.0, 1.0, 1.0};
-	createLights(lightPosition, lightColor);
-	display();
-	glAccum(GL_ACCUM, 0.5);
-
+	Vector3f lightPosition;
+	Vector3f lightColor;
+	
 	// Fill the other half with the global illumination
 	int i = 1;
 	for (i = 0; i < N; i++)
 	{
 		Vector3f currentRay = normalize(halton(i));
-		Vector3f color = {1.0, 1.0, 1.0};
-		createLights(currentRay, color);
-		display();
-		glAccum(GL_ACCUM, 1.0/(float)N/2.0);
+		Vector3f color = {1.0, 1.0, 0.791};
+		Vector3f source = {0.0, 0.8, 0.0};
+		int j;
+		for (j = 0; j < 20; j+=4)
+		{
+			Vector3f v0 = sceneData.box.vertices[j];
+			Vector3f v1 = sceneData.box.vertices[j+1];
+			Vector3f v2 = sceneData.box.vertices[j+2];
+			Vector3f lightPosition = getRayTriangleIntersectionPoint(source, currentRay, v0, v1, v2);
+			if (abs(lightPosition.x - 1000.0) > 0.1) {
+				color = sceneData.box.colors[j];
+				createLights(mul(lightPosition, 0.8), mul(color, 0.4));
+				display();
+				glAccum(GL_ACCUM, 1.0/(float)N);
+			}
+
+
+			v0 = sceneData.box.vertices[j+2];
+			v1 = sceneData.box.vertices[j+3];
+			v2 = sceneData.box.vertices[j];
+			lightPosition = getRayTriangleIntersectionPoint(source, currentRay, v0, v1, v2);
+			if (abs(lightPosition.x - 1000.0) > 0.1)
+			{
+				color = sceneData.box.colors[j];
+				createLights(mul(lightPosition, 0.8), mul(color, 0.4));
+				printVector(mul(lightPosition, 0.8));
+				display();
+				glAccum(GL_ACCUM, 1.0/(float)N);
+			}
+		}
 	}
 	glAccum(GL_RETURN, 1.0);
 	glutSwapBuffers();
@@ -450,10 +498,6 @@ int main(int argc, char **argv)
 
 	printf("Loading Shaders...\n");
 	boxShaderProgramID = loadShaders("boxShader.vert", "boxShader.frag");
-
-	Vector3f a = {9.0, 2.0, 7.0};
-	Vector3f b = {4.0, 8.0, 10.0};
-	printf("Dot: %f\n",  dot(a, b));
 
 	glutDisplayFunc(renderScene);
 	glutIdleFunc(update);

@@ -27,9 +27,33 @@ float getDeterminant(Matrix3f mat)
 	Vector3f V1 = {mat.m10, mat.m11, mat.m12};
 	Vector3f V2 = {mat.m20, mat.m21, mat.m22};
 
-	printf("Determinant %f\n", dot(V0, cross(V1, V2)));
-
 	return dot(V0, cross(V1, V2));
+}
+
+Matrix3f createMatrix(Vector3f a, Vector3f b, Vector3f c)
+{
+	Matrix3f mat;
+	mat.m00 = a.x;
+	mat.m01 = a.y;
+	mat.m02 = a.z;
+	mat.m10 = b.x;
+	mat.m11 = b.y;
+	mat.m12 = b.z;
+	mat.m20 = c.x;
+	mat.m21 = c.y;
+	mat.m22 = c.z;
+	return mat;
+}
+
+Vector3f multiplyVector(Matrix3f mat, Vector3f vec)
+{
+	Vector3f result = 
+	{
+		mat.m00*vec.x + mat.m01*vec.y + mat.m02*vec.z,
+		mat.m10*vec.x + mat.m11*vec.y + mat.m12*vec.z,
+		mat.m20*vec.x + mat.m21*vec.y + mat.m22*vec.z
+	};
+	return result;
 }
 
 Matrix3f invertAndTranspose(Matrix3f mat)
@@ -39,19 +63,11 @@ Matrix3f invertAndTranspose(Matrix3f mat)
 	Vector3f V2 = {mat.m20, mat.m21, mat.m22};
 
 	float det = getDeterminant(mat);
-	Vector3f top = cross(V1, V2);
-	Vector3f mid = mul(cross(V0, V2), -1);
-	Vector3f bot = cross(V0, V1);
+	Vector3f top = mul(cross(V1, V2), 1.0/det);
+	Vector3f mid = mul(mul(cross(V0, V2), -1), 1.0/det);
+	Vector3f bot = mul(cross(V0, V1), 1.0/det);
 
-	mat.m00 = top.x/det;
-	mat.m01 = top.y/det;
-	mat.m02 = top.z/det;
-	mat.m10 = mid.x/det;
-	mat.m11 = mid.y/det;
-	mat.m12 = mid.z/det;
-	mat.m20 = bot.x/det;
-	mat.m21 = bot.y/det;
-	mat.m22 = bot.z/det;
+	mat = createMatrix(top, mid, bot);
 	return mat;
 }
 
