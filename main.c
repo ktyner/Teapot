@@ -434,6 +434,21 @@ Vector3f getRayTriangleIntersectionPoint(Vector3f p, Vector3f d, Vector3f v0, Ve
 	return result;
 }
 
+void trace(int j, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f v2)
+{
+	Vector3f color = {1.0, 1.0, 0.791};
+	Vector3f source = {0.0, 0.8, 0.0};
+	Vector3f lightPosition = getRayTriangleIntersectionPoint(source, currentRay, v0, v1, v2);
+	if (abs(lightPosition.x - 1000.0) > 0.1)
+	{
+		color = sceneData.box.colors[j];
+		createLights(mul(lightPosition, 0.8), mul(color, 0.4));
+		//printVector(mul(lightPosition, 0.8));
+		display();
+		glAccum(GL_ACCUM, 1.0/(float)100);
+	}
+}
+
 void renderScene()
 {
 	int N = 100;
@@ -448,35 +463,18 @@ void renderScene()
 	for (i = 0; i < N; i++)
 	{
 		Vector3f currentRay = normalize(halton(i));
-		Vector3f color = {1.0, 1.0, 0.791};
-		Vector3f source = {0.0, 0.8, 0.0};
 		int j;
 		for (j = 0; j < 20; j+=4)
 		{
 			Vector3f v0 = sceneData.box.vertices[j];
 			Vector3f v1 = sceneData.box.vertices[j+1];
 			Vector3f v2 = sceneData.box.vertices[j+2];
-			Vector3f lightPosition = getRayTriangleIntersectionPoint(source, currentRay, v0, v1, v2);
-			if (abs(lightPosition.x - 1000.0) > 0.1) {
-				color = sceneData.box.colors[j];
-				createLights(mul(lightPosition, 0.8), mul(color, 0.4));
-				display();
-				glAccum(GL_ACCUM, 1.0/(float)N);
-			}
-
+			trace(j, currentRay, v0, v1, v2);
 
 			v0 = sceneData.box.vertices[j+2];
 			v1 = sceneData.box.vertices[j+3];
 			v2 = sceneData.box.vertices[j];
-			lightPosition = getRayTriangleIntersectionPoint(source, currentRay, v0, v1, v2);
-			if (abs(lightPosition.x - 1000.0) > 0.1)
-			{
-				color = sceneData.box.colors[j];
-				createLights(mul(lightPosition, 0.8), mul(color, 0.4));
-				printVector(mul(lightPosition, 0.8));
-				display();
-				glAccum(GL_ACCUM, 1.0/(float)N);
-			}
+			trace(j, currentRay, v0, v1, v2);
 		}
 	}
 	glAccum(GL_RETURN, 1.0);
