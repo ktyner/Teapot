@@ -284,7 +284,7 @@ int createLights(Vector3f pos, Vector3f color) {
   float light0_diffuse[] = { color.x, color.y, color.z, 1.0 };
   float light0_specular[] = { color.x, color.y, color.z, 1.0 };
   float light0_position[] = { pos.x, pos.y, pos.z, 1.0 };
-  float light0_direction[] = { 0.0, 0.0, 0.0, 1.0 };
+  //float light0_direction[] = { 0.0, 0.0, 0.0, 1.0 };
 
   // Turn off scene default ambient.
   //glLightModelfv(GL_LIGHT_MODEL_AMBIENT,light0_ambient);
