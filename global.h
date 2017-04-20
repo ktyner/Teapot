@@ -29,5 +29,8 @@ typedef struct data {
 SceneData sceneData;
 unsigned int boxShaderProgramID;
 float teapotRotation = 0.0;
+GLfloat light0_position[4] = {0.0, 0.99, 0.0, 1.0};
+GLfloat light0_direction[] = {-0.8, 0.0, 0.0};
+GLfloat light0_diffuse[4];
 
 #endif

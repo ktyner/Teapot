@@ -15,6 +15,8 @@
 #include "global.h"
 
 #define PI 3.14159265359
+#define XRES 768
+#define YRES 768
 
 void init(int argc, char **argv)
 {
@@ -25,8 +27,6 @@ void init(int argc, char **argv)
 	glutCreateWindow("Hopefully a teapot");
 	glClearColor(1.0, 0.0, 0.7, 1.0);
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
@@ -298,20 +298,21 @@ void loadTopLight(float dx, float dy, float dz)
 void display() 
 {
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-	
+
+	glEnableClientState(GL_COLOR_ARRAY);
 	glUseProgram(0);
+
 	// Render light
 	glVertexPointer(3, GL_FLOAT, 0, sceneData.toplight.vertices);
 	glColorPointer(3, GL_FLOAT, 0, sceneData.toplight.colors);
 	glNormalPointer(GL_FLOAT, 0, sceneData.toplight.normals);
-	glEnableClientState(GL_COLOR_ARRAY);
 	glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, sceneData.toplight.indices);
+
 	glUseProgram(boxShaderProgramID);
 	// Load box data into GPU
 	glVertexPointer(3, GL_FLOAT, 0, sceneData.box.vertices);
 	glColorPointer(3, GL_FLOAT, 0, sceneData.box.colors);
 	glNormalPointer(GL_FLOAT, 0, sceneData.box.normals);
-	glEnableClientState(GL_COLOR_ARRAY);
 	glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, sceneData.box.indices);
 
 	// Load teapot data into GPU
@@ -322,11 +323,14 @@ void display()
 	// Stores the current matrix configuration to allow for local transformations
 	glPushMatrix();
 		glTranslatef(0.0, -1.0, 0.0);
-		glRotatef(30.0, 0.0, 1.0, 0.0);
+		glRotatef(50.0, 0.0, 1.0, 0.0);
 		glScalef(0.5, 0.5, 0.5);
 		glDrawElements(GL_QUADS, sceneData.teapot.curIndex, GL_UNSIGNED_INT, sceneData.teapot.indices);
 	glPopMatrix();
+
+	glFlush();
 }
+
 void update() {}
 void input(unsigned char key, int x, int y) 
 {
@@ -336,10 +340,9 @@ void input(unsigned char key, int x, int y)
 int createLights(Vector3f pos, Vector3f color) {
   // Fill light
   //float light0_ambient[] = { 0.3, 0.3, 0.3, 0.0 };
-  float light0_diffuse[] = { color.x, color.y, color.z, 1.0 };
+  light0_diffuse[0] = color.x, light0_diffuse[1] = color.y, light0_diffuse[2] = color.z, light0_diffuse[3] = 1.0;
+  light0_position[0] = pos.x, light0_position[1] = pos.y, light0_position[2] = pos.z, light0_position[3] = 1.0;
   float light0_specular[] = { color.x, color.y, color.z, 1.0 };
-  float light0_position[] = { pos.x, pos.y, pos.z, 1.0 };
-  float light0_direction[] = { 0.0, 0.0, 0.0, 1.0 };
 
   // Turn off scene default ambient.
   //glLightModelfv(GL_LIGHT_MODEL_AMBIENT,light0_ambient);
@@ -356,13 +359,13 @@ int createLights(Vector3f pos, Vector3f color) {
   glLightf(GL_LIGHT0,GL_LINEAR_ATTENUATION,0.001);
   glLightf(GL_LIGHT0,GL_QUADRATIC_ATTENUATION,0.0001);
 */  glLightfv(GL_LIGHT0,GL_POSITION,light0_position);
-  //glLightfv(GL_LIGHT0,GL_SPOT_DIRECTION,light0_direction);
+  glLightfv(GL_LIGHT0,GL_SPOT_DIRECTION,light0_direction);
 
   glEnable(GL_LIGHT0);
   return 0;
 }
 
-int createViewVolume() {
+int createViewVolume(Vector3f ep, Vector3f vp) {
   // Specify shape and size of the view volume.
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity(); //load identity matrix into GL_PROJECTION
@@ -372,7 +375,7 @@ int createViewVolume() {
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
   
-  gluLookAt(/*position*/0.0, 0.0, -3.0,/*viewpoint*/ 0.0, 0.0, 0.0,/*up*/ 0.0, 1.0, 0.0);
+  gluLookAt(ep.x, ep.y, ep.z, vp.x, vp.y, vp.z, 0.0, 1.0, 0.0);
 
   return 0;
 }
@@ -492,7 +495,7 @@ Vector3f getRayTriangleIntersectionPoint(Vector3f p, Vector3f d, Vector3f v0, Ve
 void trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f v2)
 {
 	Vector3f color = {1.0, 1.0, 0.791};
-	Vector3f source = {0.0, 0.99, 0.0};
+	Vector3f source = {0.0, 0.9, 0.0};
 	Vector3f lightPosition = getRayTriangleIntersectionPoint(source, currentRay, v0, v1, v2);
 	if (abs(lightPosition.x - 1000.0) > 0.1)
 	{
@@ -503,8 +506,82 @@ void trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f
 	}
 }
 
+void save_matrix(float *ep, float *vp)
+{
+	glMatrixMode(GL_TEXTURE); 
+	// This must match the unit used in the vertex shader.
+	glActiveTexture(GL_TEXTURE7);
+	glLoadIdentity();
+	glTranslatef(0.0,0.0,-0.005);
+	glScalef(0.5,0.5,0.5);
+	glTranslatef(1.0,1.0,1.0);
+	gluPerspective(45.0,(float)(XRES)/(float)(YRES),0.1,20.0);
+	gluLookAt(ep[0], ep[1], ep[2], vp[0], vp[1], vp[2], 0.0,1.0,0.0);
+}
+
+void set_uniform(int p)
+{
+	int location;
+	location = glGetUniformLocation(p,"mytexture");
+	glUniform1i(location,6);
+}
+
+float deg = 0;
+
 void renderScene()
 {
+	
+	float eyepoint[3], viewpoint[3];
+	int k;
+
+	glEnable(GL_MULTISAMPLE_ARB);
+
+	Vector3f lightColor = {1.0, 1.0, 1.0};
+
+	// Fill the framebuffer with depth data from the point of view of the light
+	glBindFramebufferEXT(GL_FRAMEBUFFER, 1);
+		glUseProgram(0);
+
+		deg += 0.01;
+
+		light0_position[0] = cos(deg)*0.8; light0_position[1] = 0.9; light0_position[2] = 0.0;
+		light0_direction[0] = -light0_position[0];
+		light0_direction[1] = -1.0-light0_position[1];
+		light0_direction[2] = -light0_position[2];
+
+		for (k = 0; k < 3; k++) {
+			eyepoint[k] = light0_position[k];
+			viewpoint[k] = light0_position[k] + light0_direction[k];
+		}
+
+		Vector3f ep = {eyepoint[0], eyepoint[1], eyepoint[2]};
+		Vector3f vp = {viewpoint[0], viewpoint[1], viewpoint[2]};
+		createViewVolume(ep, vp);
+
+		Vector3f l0_pos = {light0_position[0], light0_position[1], light0_position[2]};
+		createLights(l0_pos, lightColor);
+		display();
+	glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+
+	// Store this viewpoint matrix into texture matrix 7
+	save_matrix(eyepoint, viewpoint);
+
+	glUseProgram(boxShaderProgramID);
+	set_uniform(boxShaderProgramID);
+
+	glActiveTexture(GL_TEXTURE6);
+	glBindTexture(GL_TEXTURE_2D, 1);
+
+	eyepoint[0] = 0.0, eyepoint[1] = 0.0, eyepoint[2] = -3.0;
+	viewpoint[0] = 0.0, viewpoint[1] = 0.0, viewpoint[2] = 3.0;
+
+	ep.x = eyepoint[0], ep.y = eyepoint[1], ep.z = eyepoint[2];
+	vp.x = viewpoint[0], vp.y = viewpoint[1], vp.z = viewpoint[2];
+	createViewVolume(ep, vp);
+	createLights(l0_pos, lightColor);
+	display();
+	glutSwapBuffers();
+	/*
 	int N = 100;
 	glClear(GL_ACCUM_BUFFER_BIT);
 	
@@ -528,29 +605,52 @@ void renderScene()
 		}
 	}
 	glAccum(GL_RETURN, 1.0);
-	glutSwapBuffers();
+	*/
+}
+
+void prepareFramebuffer()
+{
+	// Set properties of texture id #1.
+	glBindTexture(GL_TEXTURE_2D,1);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
+	// Declare size and type of texture; it has no data initially (last arg 0).
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, XRES, YRES, 0, 
+		GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0);
+	// Back to default.
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glBindFramebufferEXT(GL_FRAMEBUFFER,1);
+	glDrawBuffer(GL_NONE); // No color buffers will be written.
+	// Attach this framebuffer (id #1 above) to texture (id #1 is penultimate arg),
+	// so that we can perform an offscreen render-to-texture.
+	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,1,0);
+	// Back to default.
+	glBindFramebufferEXT(GL_FRAMEBUFFER,0);
 }
 
 int main(int argc, char **argv) 
 {
 	init(argc, argv);
 
-	printf("Creating View Volume...\n");
-	createViewVolume();
+	// This prepares the framebuffer to be filled with the depth component\
+	//     and tells OpenGL that the framebuffer should be stored in a texture with id = 1
+	// It doesn't actually fill the framebuffer with any data
+	printf("Preparing Framebuffer...\n");
+	prepareFramebuffer();
 
+	printf("Loading environment...\n");
 	loadTopLight(2.0, 2.0, 2.0);
-
-	printf("Loading Teapot...\n");
 	loadTeapot("teapot.605.obj");
-
-	printf("Loading Box...\n");
 	loadBox(2.0, 2.0, 2.0);
 
 	printf("Loading Shaders...\n");
 	boxShaderProgramID = loadShaders("boxShader.vert", "boxShader.frag");
 
 	glutDisplayFunc(renderScene);
-	glutIdleFunc(update);
+	glutIdleFunc(renderScene);
 	glutKeyboardFunc(input);
 
 	glutMainLoop();
