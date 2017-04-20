@@ -30,5 +30,9 @@ void main()
 	diffuse_color *= clarity*max(dot(N,L),0.2);
 	specular_color *= clarity*((shininess+2.0)/(8.0*pi))*pow(max(dot(H,N),0.0),shininess);
 
-	gl_FragColor = (diffuse_color + specular_color);
+	float kc = 0.4, kl = 0.05, kq = 0.01;
+	float d = length(gl_LightSource[0].position);
+	float atten = 1.0 / (kc + kl*d + kq*d*d);
+
+	gl_FragColor = atten*(diffuse_color + specular_color);
 }

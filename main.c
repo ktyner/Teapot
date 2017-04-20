@@ -492,20 +492,6 @@ Vector3f getRayTriangleIntersectionPoint(Vector3f p, Vector3f d, Vector3f v0, Ve
 	return result;
 }
 
-void trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f v2)
-{
-	Vector3f color = {1.0, 1.0, 0.791};
-	Vector3f source = {0.0, 0.9, 0.0};
-	Vector3f lightPosition = getRayTriangleIntersectionPoint(source, currentRay, v0, v1, v2);
-	if (abs(lightPosition.x - 1000.0) > 0.1)
-	{
-		color = sceneData.box.colors[j];
-		createLights(mul(lightPosition, 0.8), mul(color, 0.4));
-		display();
-		glAccum(GL_ACCUM, 1.0/(float)N);
-	}
-}
-
 void save_matrix(float *ep, float *vp)
 {
 	glMatrixMode(GL_TEXTURE); 
@@ -526,25 +512,18 @@ void set_uniform(int p)
 	glUniform1i(location,6);
 }
 
-float deg = 0;
-
-void renderScene()
+void renderWithShadows(Vector3f lightPosition, Vector3f lightColor)
 {
-	
 	float eyepoint[3], viewpoint[3];
 	int k;
 
 	glEnable(GL_MULTISAMPLE_ARB);
 
-	Vector3f lightColor = {1.0, 1.0, 1.0};
-
 	// Fill the framebuffer with depth data from the point of view of the light
 	glBindFramebufferEXT(GL_FRAMEBUFFER, 1);
 		glUseProgram(0);
 
-		deg += 0.01;
-
-		light0_position[0] = cos(deg)*0.8; light0_position[1] = 0.9; light0_position[2] = 0.0;
+		light0_position[0] = lightPosition.x, light0_position[1] = lightPosition.y, light0_position[2] = lightPosition.z;
 		light0_direction[0] = -light0_position[0];
 		light0_direction[1] = -1.0-light0_position[1];
 		light0_direction[2] = -light0_position[2];
@@ -580,19 +559,42 @@ void renderScene()
 	createViewVolume(ep, vp);
 	createLights(l0_pos, lightColor);
 	display();
-	glutSwapBuffers();
-	/*
-	int N = 100;
+}
+
+void trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f v2)
+{
+	Vector3f color = {1.0, 1.0, 0.791};
+	Vector3f source = {0.0, 0.9, 0.0};
+	Vector3f lightPosition = getRayTriangleIntersectionPoint(source, currentRay, v0, v1, v2);
+	if (abs(lightPosition.x - 1000.0) > 0.1)
+	{
+		lightPosition = mul(lightPosition, 0.8);
+
+		color = sceneData.box.colors[j];
+		color = mul(color, 0.4);
+		
+
+		renderWithShadows(lightPosition, color);
+
+
+		glAccum(GL_ACCUM, 1.0/(float)N);
+	}
+}
+
+void renderScene()
+{
+	int N = 300;
 	glClear(GL_ACCUM_BUFFER_BIT);
-	
-	// Fill the other half with the global illumination
+
 	int i;
 	for (i = 0; i < N; i++)
 	{
 		Vector3f currentRay = normalize(halton(i));
+
 		int j;
 		for (j = 0; j < 20; j+=4)
 		{
+
 			Vector3f v0 = sceneData.box.vertices[j];
 			Vector3f v1 = sceneData.box.vertices[j+1];
 			Vector3f v2 = sceneData.box.vertices[j+2];
@@ -605,7 +607,7 @@ void renderScene()
 		}
 	}
 	glAccum(GL_RETURN, 1.0);
-	*/
+	glutSwapBuffers();
 }
 
 void prepareFramebuffer()
@@ -650,7 +652,7 @@ int main(int argc, char **argv)
 	boxShaderProgramID = loadShaders("boxShader.vert", "boxShader.frag");
 
 	glutDisplayFunc(renderScene);
-	glutIdleFunc(renderScene);
+	glutIdleFunc(update);
 	glutKeyboardFunc(input);
 
 	glutMainLoop();
