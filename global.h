@@ -21,13 +21,14 @@ typedef struct toplight {
 } TopLightData;
 
 typedef struct data {
+	GLuint vertexCount;
 	BoxData box;
 	TeapotData teapot;
 	TopLightData toplight;
 } SceneData;
 
 SceneData sceneData;
-unsigned int boxShaderProgramID;
+unsigned int boxShaderProgramID, teapotShaderProgramID;
 float teapotRotation = 0.0;
 GLfloat light0_position[4] = {0.0, 0.99, 0.0, 1.0};
 GLfloat light0_direction[] = {-0.8, 0.0, 0.0};

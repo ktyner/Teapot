@@ -17,6 +17,7 @@
 #define PI 3.14159265359
 #define XRES 768
 #define YRES 768
+#define RAYNOTHIT 1000000
 
 void init(int argc, char **argv)
 {
@@ -38,13 +39,13 @@ void loadTeapot(const char *objFile)
 	char line[256];
 	char *lineData;
 
-	int vertexCount = 0, texCount = 0;
+	int texCount = 0;
 
 	while (fgets(line, sizeof(line), file))
 	{
 		if (line[0]+line[1] == 'v'+' ')
 		{
-			vertexCount++;
+			sceneData.vertexCount++;
 		}
 		else if (line[0]+line[1] == 'v'+'t') 
 		{
@@ -56,14 +57,14 @@ void loadTeapot(const char *objFile)
 	Vector2f *texCoords;
 	int nindex = 0, texindex = 0;
 
-	normals = malloc(sizeof(Vector3f) * vertexCount);
+	normals = malloc(sizeof(Vector3f) * sceneData.vertexCount);
 	texCoords = malloc(sizeof(Vector2f) * texCount);
-	sceneData.teapot.vertices = malloc(sizeof(Vector3f) * vertexCount);
-	sceneData.teapot.normals = malloc(sizeof(Vector3f) * vertexCount);
-	sceneData.teapot.tangents = malloc(sizeof(Vector3f) * vertexCount);
-	sceneData.teapot.bitangents = malloc(sizeof(Vector3f) * vertexCount);
+	sceneData.teapot.vertices = malloc(sizeof(Vector3f) * sceneData.vertexCount);
+	sceneData.teapot.normals = malloc(sizeof(Vector3f) * sceneData.vertexCount);
+	sceneData.teapot.tangents = malloc(sizeof(Vector3f) * sceneData.vertexCount);
+	sceneData.teapot.bitangents = malloc(sizeof(Vector3f) * sceneData.vertexCount);
 	sceneData.teapot.texCoords = malloc(sizeof(Vector2f) * texCount);
-	sceneData.teapot.indices = malloc(sizeof(GLuint) * vertexCount * 4);
+	sceneData.teapot.indices = malloc(sizeof(GLuint) * sceneData.vertexCount * 4);
 
 	rewind(file);
 
@@ -315,6 +316,8 @@ void display()
 	glNormalPointer(GL_FLOAT, 0, sceneData.box.normals);
 	glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, sceneData.box.indices);
 
+	glUseProgram(teapotShaderProgramID);
+
 	// Load teapot data into GPU
 	glVertexPointer(3, GL_FLOAT, 0, sceneData.teapot.vertices);
 	glNormalPointer(GL_FLOAT, 0, sceneData.teapot.normals);
@@ -483,7 +486,7 @@ Vector3f getRayTriangleIntersectionPoint(Vector3f p, Vector3f d, Vector3f v0, Ve
 	result = multiplyVector(mat, right);
 
 	if (result.x < 0.0) {
-		Vector3f null = {1000.0, 1000.0, 1000.0};
+		Vector3f null = {RAYNOTHIT, RAYNOTHIT, RAYNOTHIT};
 		return null;
 	}
 
@@ -561,24 +564,26 @@ void renderWithShadows(Vector3f lightPosition, Vector3f lightColor)
 	display();
 }
 
-void trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f v2)
+int trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f v2)
 {
 	Vector3f color = {1.0, 1.0, 0.791};
 	Vector3f source = {0.0, 0.9, 0.0};
 	Vector3f lightPosition = getRayTriangleIntersectionPoint(source, currentRay, v0, v1, v2);
-	if (abs(lightPosition.x - 1000.0) > 0.1)
+	if (lightPosition.x != RAYNOTHIT)
 	{
 		lightPosition = mul(lightPosition, 0.8);
 
+		if (lightPosition.y <= 0.0) lightPosition.y = 0.0;
+
 		color = sceneData.box.colors[j];
-		color = mul(color, 0.4);
-		
+		color = mul(color, 0.5);
 
 		renderWithShadows(lightPosition, color);
 
-
 		glAccum(GL_ACCUM, 1.0/(float)N);
+		return 1;
 	}
+	return 0;
 }
 
 void renderScene()
@@ -591,13 +596,82 @@ void renderScene()
 	{
 		Vector3f currentRay = normalize(halton(i));
 
+		Vector3f v0, v1, v2;
+		int hitTeapot = 0;
+
 		int j;
+
+		// Make sure the ray is at least a candidate to hit the teapot
+		if (currentRay.y < 0.0 && abs(currentRay.x) < 0.4 && abs(currentRay.z) < 0.4) {
+
+			// Take this out if you want to render A LOT faster
+			for (j = 0; j < sceneData.vertexCount; j++)
+			{
+				if (sceneData.teapot.normals[j].y >= 0.0) {
+					v0 = sceneData.teapot.vertices[j];
+					v1 = sceneData.teapot.vertices[j+1];
+					v2 = sceneData.teapot.vertices[j+2];
+					if (trace(j, N, currentRay, v0, v1, v2)) {
+						hitTeapot = 1;
+						break;
+					}
+					v0 = sceneData.teapot.vertices[+2];
+					v1 = sceneData.teapot.vertices[j+3];
+					v2 = sceneData.teapot.vertices[j];
+					if (trace(j, N, currentRay, v0, v1, v2))
+					{
+						hitTeapot = 1;
+						break;
+					}
+				}
+			}
+		}
+
+		if (hitTeapot) continue;
+
 		for (j = 0; j < 20; j+=4)
 		{
-
-			Vector3f v0 = sceneData.box.vertices[j];
-			Vector3f v1 = sceneData.box.vertices[j+1];
-			Vector3f v2 = sceneData.box.vertices[j+2];
+			switch(j) {
+				//back
+				case 0:
+				case 1:
+				case 2:
+				case 3:
+					if (currentRay.z < 0.0) continue;
+					break;
+				//right
+				case 4:
+				case 5:
+				case 6:
+				case 7:
+					if (currentRay.x > 0.0) continue;
+					break;
+				//left
+				case 8:
+				case 9:
+				case 10:
+				case 11:
+					if (currentRay.x < 0.0) continue;
+					break;
+				//top
+				case 12:
+				case 13:
+				case 14:
+				case 15:
+					if (currentRay.y < 0.0) continue;
+					break;
+				//bottom
+				case 16:
+				case 17:
+				case 18:
+				case 19:
+				case 20:
+					if (currentRay.y > 0.0) continue;
+					break;
+			}
+			v0 = sceneData.box.vertices[j];
+			v1 = sceneData.box.vertices[j+1];
+			v2 = sceneData.box.vertices[j+2];
 			trace(j, N, currentRay, v0, v1, v2);
 
 			v0 = sceneData.box.vertices[j+2];
@@ -650,6 +724,7 @@ int main(int argc, char **argv)
 
 	printf("Loading Shaders...\n");
 	boxShaderProgramID = loadShaders("boxShader.vert", "boxShader.frag");
+	teapotShaderProgramID = loadShaders("teapotShader.vert", "teapotShader.frag");
 
 	glutDisplayFunc(renderScene);
 	glutIdleFunc(update);
