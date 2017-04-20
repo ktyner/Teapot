@@ -23,7 +23,7 @@ typedef struct toplight {
 typedef struct data {
 	BoxData box;
 	TeapotData teapot;
-	TopLightData toplight;
+	TopLightData toplight
 } SceneData;
 
 SceneData sceneData;

@@ -247,11 +247,67 @@ void loadBox(float dx, float dy, float dz)
 		sceneData.box.indices[i] = i;
 	}
 }
+//////////////////
+void loadTopLight(float dx, float dy, float dz)
+{
+	dx /= 2.0;
+	dy /= 2.0;
+	dz /= 2.0;
+	Vector3f vertices[] = 
+	{
+		// Top Light
+		{	-dx/3.0,  dy-0.001,  dz/3.0	},
+		{	-dx/3.0,  dy-0.001, -dz/3.0	},
+		{	 dx/3.0,  dy-0.001, -dz/3.0	},
+		{	 dx/3.0,  dy-0.001,  dz/3.0	}
+	};
+
+	Vector3f normals[] =
+	{
+		// Top Light
+		{	 0.0, -1.0,  0.0	},
+		{	 0.0, -1.0,  0.0	},
+		{	 0.0, -1.0,  0.0	},
+		{	 0.0, -1.0,  0.0	}
+	};
+
+	Vector3f colors[] = 
+	{
+		// Top Light
+		{	 1.0,  1.0,  1.0	},
+	 	{	 1.0,  1.0,  1.0	},
+		{	 1.0,  1.0,  1.0	},
+		{	 1.0,  1.0,  1.0	}
+	};
+	
+	sceneData.toplight.vertices = malloc(sizeof(Vector3f) * 4);
+	sceneData.toplight.colors = malloc(sizeof(Vector3f) * 4);
+	sceneData.toplight.normals = malloc(sizeof(Vector3f) * 4);
+	sceneData.toplight.indices = malloc(sizeof(GLubyte) * 4);
+
+	int i;
+	for (i = 0; i < 4; i++)
+	{
+		sceneData.toplight.vertices[i] = vertices[i];
+		sceneData.toplight.colors[i] = colors[i];
+		sceneData.toplight.normals[i] = normals[i];
+		sceneData.toplight.indices[i] = i;
+	}
+}
+////////////////////
 
 void display() 
 {
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	
+	glUseProgram(0);
+	// Render light
+	glVertexPointer(3, GL_FLOAT, 0, sceneData.toplight.vertices);
+	glColorPointer(3, GL_FLOAT, 0, sceneData.toplight.colors);
+	glNormalPointer(GL_FLOAT, 0, sceneData.toplight.normals);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, sceneData.toplight.indices);
+	glUseProgram(boxShaderProgramID);
 	// Load box data into GPU
 	glVertexPointer(3, GL_FLOAT, 0, sceneData.box.vertices);
 	glColorPointer(3, GL_FLOAT, 0, sceneData.box.colors);
@@ -284,7 +340,7 @@ int createLights(Vector3f pos, Vector3f color) {
   float light0_diffuse[] = { color.x, color.y, color.z, 1.0 };
   float light0_specular[] = { color.x, color.y, color.z, 1.0 };
   float light0_position[] = { pos.x, pos.y, pos.z, 1.0 };
-  //float light0_direction[] = { 0.0, 0.0, 0.0, 1.0 };
+  float light0_direction[] = { 0.0, 0.0, 0.0, 1.0 };
 
   // Turn off scene default ambient.
   //glLightModelfv(GL_LIGHT_MODEL_AMBIENT,light0_ambient);
@@ -434,18 +490,17 @@ Vector3f getRayTriangleIntersectionPoint(Vector3f p, Vector3f d, Vector3f v0, Ve
 	return result;
 }
 
-void trace(int j, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f v2)
+void trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f v2)
 {
 	Vector3f color = {1.0, 1.0, 0.791};
-	Vector3f source = {0.0, 0.8, 0.0};
+	Vector3f source = {0.0, 0.99, 0.0};
 	Vector3f lightPosition = getRayTriangleIntersectionPoint(source, currentRay, v0, v1, v2);
 	if (abs(lightPosition.x - 1000.0) > 0.1)
 	{
 		color = sceneData.box.colors[j];
 		createLights(mul(lightPosition, 0.8), mul(color, 0.4));
-		//printVector(mul(lightPosition, 0.8));
 		display();
-		glAccum(GL_ACCUM, 1.0/(float)100);
+		glAccum(GL_ACCUM, 1.0/(float)N);
 	}
 }
 
@@ -453,13 +508,9 @@ void renderScene()
 {
 	int N = 100;
 	glClear(GL_ACCUM_BUFFER_BIT);
-
-	// Fill half of the accumulation buffer with the main light
-	Vector3f lightPosition;
-	Vector3f lightColor;
 	
 	// Fill the other half with the global illumination
-	int i = 1;
+	int i;
 	for (i = 0; i < N; i++)
 	{
 		Vector3f currentRay = normalize(halton(i));
@@ -469,12 +520,12 @@ void renderScene()
 			Vector3f v0 = sceneData.box.vertices[j];
 			Vector3f v1 = sceneData.box.vertices[j+1];
 			Vector3f v2 = sceneData.box.vertices[j+2];
-			trace(j, currentRay, v0, v1, v2);
+			trace(j, N, currentRay, v0, v1, v2);
 
 			v0 = sceneData.box.vertices[j+2];
 			v1 = sceneData.box.vertices[j+3];
 			v2 = sceneData.box.vertices[j];
-			trace(j, currentRay, v0, v1, v2);
+			trace(j, N, currentRay, v0, v1, v2);
 		}
 	}
 	glAccum(GL_RETURN, 1.0);
@@ -487,6 +538,8 @@ int main(int argc, char **argv)
 
 	printf("Creating View Volume...\n");
 	createViewVolume();
+
+	loadTopLight(2.0, 2.0, 2.0);
 
 	printf("Loading Teapot...\n");
 	loadTeapot("teapot.605.obj");
