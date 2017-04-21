@@ -147,6 +147,11 @@ void loadBox(float dx, float dy, float dz)
 	dx /= 2.0;
 	dy /= 2.0;
 	dz /= 2.0;
+
+	Vector3f red = {1.0, 0.0, 0.0};
+	Vector3f green = {0.0, 1.0, 0.0};
+	Vector3f white = {1.0, 1.0, 1.0};
+
 	Vector3f vertices[] = 
 	{
 		// Back Face
@@ -208,30 +213,48 @@ void loadBox(float dx, float dy, float dz)
 	Vector3f colors[] = 
 	{
 		// Back Face
-		{	 1.0,  1.0,  1.0	},
-	 	{	 1.0,  1.0,  1.0	},
-		{	 1.0,  1.0,  1.0	},
-		{	 1.0,  1.0,  1.0	},
+		white, white, white, white,
 		// Right Face
-		{	 0.0,  1.0,  0.0	},
-	 	{	 0.0,  1.0,  0.0	},
-		{	 0.0,  1.0,  0.0	},
-		{	 0.0,  1.0,  0.0	},
+		green, green, green, green,
 		// Left Face
-		{	 1.0,  0.0,  0.0	},
-	 	{	 1.0,  0.0,  0.0	},
-		{	 1.0,  0.0,  0.0	},
-		{	 1.0,  0.0,  0.0	},
+		red, red, red, red,
 		// Top Face
-		{	 1.0,  1.0,  1.0	},
-	 	{	 1.0,  1.0,  1.0	},
-		{	 1.0,  1.0,  1.0	},
-		{	 1.0,  1.0,  1.0	},
+		white, white, white, white,
 		// Bottom Face
-		{	 1.0,  1.0,  1.0	},
-	 	{	 1.0,  1.0,  1.0	},
-		{	 1.0,  1.0,  1.0	},
-		{	 1.0,  1.0,  1.0	}
+		white, white, white, white
+	};
+
+	Vector2f texCoords[] =
+	{
+		{	0.0,  0.0	},
+		{	1.0,  0.0	},
+		{	1.0,  1.0	},
+		{	0.0,  1.0	},
+
+		{	0.0,  0.0	},
+		{	1.0,  0.0	},
+		{	1.0,  1.0	},
+		{	0.0,  1.0	},
+
+		{	0.0,  0.0	},
+		{	1.0,  0.0	},
+		{	1.0,  1.0	},
+		{	0.0,  1.0	},
+
+		{	0.0,  0.0	},
+		{	1.0,  0.0	},
+		{	1.0,  1.0	},
+		{	0.0,  1.0	},
+
+		{	0.0,  0.0	},
+		{	1.0,  0.0	},
+		{	1.0,  1.0	},
+		{	0.0,  1.0	},
+
+		{	0.0,  0.0	},
+		{	1.0,  0.0	},
+		{	1.0,  1.0	},
+		{	0.0,  1.0	}
 	};
 	
 	sceneData.box.vertices = malloc(sizeof(Vector3f) * 20);
@@ -257,10 +280,10 @@ void loadTopLight(float dx, float dy, float dz)
 	Vector3f vertices[] = 
 	{
 		// Top Light
-		{	-dx/3.0,  dy-0.001,  dz/3.0	},
-		{	-dx/3.0,  dy-0.001, -dz/3.0	},
-		{	 dx/3.0,  dy-0.001, -dz/3.0	},
-		{	 dx/3.0,  dy-0.001,  dz/3.0	}
+		{	-dx/3.0,  0.0,  dz/3.0	},
+		{	-dx/3.0,  0.0, -dz/3.0	},
+		{	 dx/3.0,  0.0, -dz/3.0	},
+		{	 dx/3.0,  0.0,  dz/3.0	}
 	};
 
 	Vector3f normals[] =
@@ -296,27 +319,44 @@ void loadTopLight(float dx, float dy, float dz)
 	}
 }
 
-void display() 
+float myrand() { return ((float)(rand() % 100000)/100000.0 - 0.5); }
+
+// flag - 0 = render with shadows, 1 = render without shadows
+void display(int flag) 
 {
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 	glEnableClientState(GL_COLOR_ARRAY);
 	glUseProgram(0);
 
+	Vector3f lightJitter = {myrand()*0.4, myrand()*0.07, myrand()*0.07}; //myrand()*0.05};
+	Vector3f aaJitter = {myrand(), myrand(), myrand()};
+	aaJitter = mul(aaJitter, 0.003);
+
 	// Render light
 	glVertexPointer(3, GL_FLOAT, 0, sceneData.toplight.vertices);
 	glColorPointer(3, GL_FLOAT, 0, sceneData.toplight.colors);
 	glNormalPointer(GL_FLOAT, 0, sceneData.toplight.normals);
-	glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, sceneData.toplight.indices);
+	glPushMatrix();
+		glTranslatef(lightJitter.y, 0.9999, lightJitter.z);
+		glScalef(1.0-lightJitter.x, 1.0-lightJitter.x, 1.0-lightJitter.x);
+		glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, sceneData.toplight.indices);
+	glPopMatrix();
 
-	glUseProgram(boxShaderProgramID);
+	glUseProgram(phongProgramID);
+
+	if (!flag) glUseProgram(boxShaderProgramID);
 	// Load box data into GPU
 	glVertexPointer(3, GL_FLOAT, 0, sceneData.box.vertices);
 	glColorPointer(3, GL_FLOAT, 0, sceneData.box.colors);
 	glNormalPointer(GL_FLOAT, 0, sceneData.box.normals);
-	glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, sceneData.box.indices);
 
-	glUseProgram(teapotShaderProgramID);
+	glPushMatrix();
+		glTranslatef(aaJitter.x, aaJitter.y, aaJitter.z);
+		glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, sceneData.box.indices);
+	glPopMatrix();
+
+	if (!flag) glUseProgram(teapotShaderProgramID);
 
 	// Load teapot data into GPU
 	glVertexPointer(3, GL_FLOAT, 0, sceneData.teapot.vertices);
@@ -325,7 +365,7 @@ void display()
 
 	// Stores the current matrix configuration to allow for local transformations
 	glPushMatrix();
-		glTranslatef(0.0, -1.0, 0.0);
+		glTranslatef(aaJitter.x, aaJitter.y-1.0, aaJitter.z);
 		glRotatef(50.0, 0.0, 1.0, 0.0);
 		glScalef(0.5, 0.5, 0.5);
 		glDrawElements(GL_QUADS, sceneData.teapot.curIndex, GL_UNSIGNED_INT, sceneData.teapot.indices);
@@ -356,12 +396,12 @@ int createLights(Vector3f pos, Vector3f color) {
   //glLightfv(GL_LIGHT0,GL_AMBIENT,light0_ambient);
   glLightfv(GL_LIGHT0,GL_DIFFUSE,light0_diffuse);
   glLightfv(GL_LIGHT0,GL_SPECULAR,light0_specular);
-/*  glLightf(GL_LIGHT0,GL_SPOT_EXPONENT,1.0);
-  glLightf(GL_LIGHT0,GL_SPOT_CUTOFF,180.0);
+  //glLightf(GL_LIGHT0,GL_SPOT_EXPONENT,1.0);
+  //glLightf(GL_LIGHT0,GL_SPOT_CUTOFF,180.0);
   glLightf(GL_LIGHT0,GL_CONSTANT_ATTENUATION,0.5);
   glLightf(GL_LIGHT0,GL_LINEAR_ATTENUATION,0.001);
   glLightf(GL_LIGHT0,GL_QUADRATIC_ATTENUATION,0.0001);
-*/  glLightfv(GL_LIGHT0,GL_POSITION,light0_position);
+  glLightfv(GL_LIGHT0,GL_POSITION,light0_position);
   glLightfv(GL_LIGHT0,GL_SPOT_DIRECTION,light0_direction);
 
   glEnable(GL_LIGHT0);
@@ -542,7 +582,7 @@ void renderWithShadows(Vector3f lightPosition, Vector3f lightColor)
 
 		Vector3f l0_pos = {light0_position[0], light0_position[1], light0_position[2]};
 		createLights(l0_pos, lightColor);
-		display();
+		display(0);
 	glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
 
 	// Store this viewpoint matrix into texture matrix 7
@@ -555,13 +595,13 @@ void renderWithShadows(Vector3f lightPosition, Vector3f lightColor)
 	glBindTexture(GL_TEXTURE_2D, 1);
 
 	eyepoint[0] = 0.0, eyepoint[1] = 0.0, eyepoint[2] = -3.0;
-	viewpoint[0] = 0.0, viewpoint[1] = 0.0, viewpoint[2] = 3.0;
+	viewpoint[0] = 0.0, viewpoint[1] = 0.0, viewpoint[2] = 0.0;
 
 	ep.x = eyepoint[0], ep.y = eyepoint[1], ep.z = eyepoint[2];
 	vp.x = viewpoint[0], vp.y = viewpoint[1], vp.z = viewpoint[2];
 	createViewVolume(ep, vp);
 	createLights(l0_pos, lightColor);
-	display();
+	display(0);
 }
 
 int trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f v2)
@@ -576,10 +616,12 @@ int trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f 
 		if (lightPosition.y <= 0.0) lightPosition.y = 0.0;
 
 		color = sceneData.box.colors[j];
-		color = mul(color, 0.5);
+		color = mul(color, 0.5); // Dampen the colors
+
 
 		renderWithShadows(lightPosition, color);
 
+		//glAccum(GL_ACCUM, 1.0/(float)N * 0.7);
 		glAccum(GL_ACCUM, 1.0/(float)N);
 		return 1;
 	}
@@ -588,8 +630,20 @@ int trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f 
 
 void renderScene()
 {
-	int N = 300;
+	int N = 1000;
 	glClear(GL_ACCUM_BUFFER_BIT);
+
+/*
+	Vector3f lightPos = {0.0, 0.0, 0.0};
+	Vector3f lightColor = {1.0, 1.0, 0.8};
+	Vector3f eyePos = {0.0, 0.0, -3.0};
+	Vector3f viewPos = {0.0, 0.0, 3.0};
+
+	createViewVolume(eyePos, viewPos);
+	createLights(lightPos, lightColor);
+	display(1);
+	glAccum(GL_ACCUM, 1.0 * 0.3);
+*/
 
 	int i;
 	for (i = 0; i < N; i++)
@@ -601,7 +655,7 @@ void renderScene()
 
 		int j;
 
-		// Make sure the ray is at least a candidate to hit the teapot
+		// Make sure the ray is at least a candidate to hit the teapot (pruning)
 		if (currentRay.y < 0.0 && abs(currentRay.x) < 0.4 && abs(currentRay.z) < 0.4) {
 
 			// Take this out if you want to render A LOT faster
@@ -631,14 +685,8 @@ void renderScene()
 
 		for (j = 0; j < 20; j+=4)
 		{
+			//Pruning
 			switch(j) {
-				//back
-				case 0:
-				case 1:
-				case 2:
-				case 3:
-					if (currentRay.z < 0.0) continue;
-					break;
 				//right
 				case 4:
 				case 5:
@@ -653,22 +701,10 @@ void renderScene()
 				case 11:
 					if (currentRay.x < 0.0) continue;
 					break;
-				//top
-				case 12:
-				case 13:
-				case 14:
-				case 15:
-					if (currentRay.y < 0.0) continue;
-					break;
-				//bottom
-				case 16:
-				case 17:
-				case 18:
-				case 19:
-				case 20:
-					if (currentRay.y > 0.0) continue;
+				default:
 					break;
 			}
+			
 			v0 = sceneData.box.vertices[j];
 			v1 = sceneData.box.vertices[j+1];
 			v2 = sceneData.box.vertices[j+2];
@@ -698,7 +734,9 @@ void prepareFramebuffer()
 	// Back to default.
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	glBindFramebufferEXT(GL_FRAMEBUFFER,1);
+	GLuint frameBufferID;
+	glGenFramebuffers(1, &frameBufferID);
+	glBindFramebufferEXT(GL_FRAMEBUFFER,frameBufferID);
 	glDrawBuffer(GL_NONE); // No color buffers will be written.
 	// Attach this framebuffer (id #1 above) to texture (id #1 is penultimate arg),
 	// so that we can perform an offscreen render-to-texture.
@@ -707,13 +745,48 @@ void prepareFramebuffer()
 	glBindFramebufferEXT(GL_FRAMEBUFFER,0);
 }
 
+int loadTexture(const char *filename) {
+	FILE *fopen(), *fptr;
+	char buf[512];
+	int im_size, im_width, im_height, max_color;
+	unsigned char *texture_bytes, *parse;
+
+	fptr=fopen(filename,"r");
+	if (!fptr) return -1;
+	fgets(buf,512,fptr);
+	do{
+	fgets(buf,512,fptr);
+	} while(buf[0]=='#');
+
+	parse = strtok(buf," \t");
+	im_width = atoi(parse);
+
+	parse = strtok(NULL," \n");
+	im_height = atoi(parse);
+
+	fgets(buf,512,fptr);
+	parse = strtok(buf," \n");
+	max_color = atoi(parse);
+
+	im_size = im_width*im_height;
+	texture_bytes = (unsigned char *)calloc(3,im_size);
+	fread(texture_bytes,3,im_size,fptr);
+	fclose(fptr);
+	glGenTextures(1, &floorTextureID);
+	glBindTexture(GL_TEXTURE_2D, floorTextureID);
+	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,im_width,im_height,0,GL_RGB,
+	           GL_UNSIGNED_BYTE,texture_bytes);
+	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+	cfree(texture_bytes);
+
+	return 0;
+}
+
 int main(int argc, char **argv) 
 {
 	init(argc, argv);
 
-	// This prepares the framebuffer to be filled with the depth component\
-	//     and tells OpenGL that the framebuffer should be stored in a texture with id = 1
-	// It doesn't actually fill the framebuffer with any data
 	printf("Preparing Framebuffer...\n");
 	prepareFramebuffer();
 
@@ -725,6 +798,7 @@ int main(int argc, char **argv)
 	printf("Loading Shaders...\n");
 	boxShaderProgramID = loadShaders("boxShader.vert", "boxShader.frag");
 	teapotShaderProgramID = loadShaders("teapotShader.vert", "teapotShader.frag");
+	phongProgramID = loadShaders("phong.vert", "phong.frag");
 
 	glutDisplayFunc(renderScene);
 	glutIdleFunc(update);

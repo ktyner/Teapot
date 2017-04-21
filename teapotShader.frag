@@ -24,7 +24,7 @@ void main()
 	pccoords = tcoords/tcoords.w;
 	depthsample = texture2D(mytexture, pccoords.st);
 	if (abs(depthsample - pccoords.z) < 0.1 && depthsample < pccoords.z) {
-		clarity = vec4(0.3, 0.32, 0.35, 0.0);
+		clarity = vec4(0.0, 0.02, 0.05, 0.0);
 	}
 	diffuse_color *= clarity*max(dot(N,L),0.2);
 	specular_color *= clarity*((shininess+2.0)/(8.0*pi))*pow(max(dot(H,N),0.0),shininess);
