@@ -10,7 +10,7 @@ float dot(Vector3f left, Vector3f right)
 	return left.x*right.x + left.y*right.y + left.z*right.z;
 }
 
-Vector3f cross(Vector3f left, Vector3f right)
+Vector3f cross(Vector3f left, Vector3f right) 
 {
 	Vector3f result = 
 	{
@@ -69,22 +69,6 @@ Matrix3f invertAndTranspose(Matrix3f mat)
 
 	mat = createMatrix(top, mid, bot);
 	return mat;
-}
-
-Vector3f normalize(Vector3f vec)
-{
-	float mag = sqrt(pow(vec.x, 2) + pow(vec.y, 2) + pow(vec.z, 2));
-	vec.x /= mag;
-	vec.y /= mag;
-	vec.z /= mag;
-	return vec;
-}
-
-void printMatrix(Matrix3f mat)
-{
-	printf("%f %f %f\n", mat.m00, mat.m01, mat.m02);
-	printf("%f %f %f\n", mat.m10, mat.m11, mat.m12);
-	printf("%f %f %f\n", mat.m20, mat.m21, mat.m22);
 }
 
 #endif

@@ -16,7 +16,7 @@ typedef struct box {
 } BoxData;
 
 typedef struct toplight {
-	Vector3f *vertices, *colors, *normals;
+	Vector3f *vertices, *normals;
 	GLubyte *indices;
 } TopLightData;
 
@@ -30,7 +30,6 @@ typedef struct data {
 SceneData sceneData;
 unsigned int boxShaderProgramID, teapotShaderProgramID, phongProgramID;
 unsigned int floorTextureID;
-float teapotRotation = 0.0;
 GLfloat light0_position[4] = {0.0, 0.99, 0.0, 1.0};
 GLfloat light0_direction[] = {-0.8, 0.0, 0.0};
 GLfloat light0_diffuse[4];

@@ -1,7 +1,7 @@
 varying vec3 ec_vnormal, ec_vposition;
 varying vec4 tcoords;
 
-uniform sampler2D mytexture;
+uniform sampler2D depthTexture;
 
 void main()
 {
@@ -22,14 +22,17 @@ void main()
 	H = normalize(L+V);
 	
 	pccoords = tcoords/tcoords.w;
-	depthsample = texture2D(mytexture, pccoords.st);
+	depthsample = texture2D(depthTexture, pccoords.st);
 	if (abs(depthsample - pccoords.z) < 0.1 && depthsample < pccoords.z) {
 		clarity = vec4(0.0, 0.02, 0.05, 0.0);
 	}
+
 	diffuse_color *= clarity*max(dot(N,L),0.2);
 	specular_color *= clarity*((shininess+2.0)/(8.0*pi))*pow(max(dot(H,N),0.0),shininess);
 
-	float kc = 0.4, kl = 0.05, kq = 0.01;
+	float kc = gl_LightSource[0].constantAttenuation;
+	float kl = gl_LightSource[0].linearAttenuation;
+	float kq = gl_LightSource[0].quadraticAttenuation;
 	float d = length(gl_LightSource[0].position);
 	float atten = 1.0 / (kc + kl*d + kq*d*d);
 

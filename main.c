@@ -15,15 +15,15 @@
 #include "global.h"
 
 #define PI 3.14159265359
-#define XRES 768
-#define YRES 768
+#define XRES 1280
+#define YRES 1024
 #define RAYNOTHIT 1000000
 
 void init(int argc, char **argv)
 {
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA|GLUT_DEPTH|GLUT_MULTISAMPLE|GLUT_ACCUM|GLUT_DOUBLE);
-	glutInitWindowSize(768, 768);
+	glutInitWindowSize(XRES, YRES);
 	glutInitWindowPosition(1000, 200);
 	glutCreateWindow("Hopefully a teapot");
 	glClearColor(1.0, 0.0, 0.7, 1.0);
@@ -125,23 +125,11 @@ void loadTeapot(const char *objFile)
 				sceneData.teapot.normals[currentVertexPointer] = currentNormal;
 			}
 		} else {
-
+			// Material file stuff here
 		}
-
-		//glVertexPointer(3, GL_FLOAT, 0, sceneData.teapot.vertices);
-		//glNormalPointer(GL_FLOAT, 0, sceneData.teapot.normals);
-
-		/* We don't need to free normals or texCoords because the O.S. handles
-		   this automatically when using malloc. It causes a double free segfault
-		   if we try to free here. */
 	}
 }
 
-/*
-	dx - width
-	dy - height
-	dz - depth
-*/
 void loadBox(float dx, float dy, float dz)
 {
 	dx /= 2.0;
@@ -272,10 +260,9 @@ void loadBox(float dx, float dy, float dz)
 	}
 }
 
-void loadTopLight(float dx, float dy, float dz)
+void loadTopLight(float dx, float dz)
 {
 	dx /= 2.0;
-	dy /= 2.0;
 	dz /= 2.0;
 	Vector3f vertices[] = 
 	{
@@ -294,18 +281,8 @@ void loadTopLight(float dx, float dy, float dz)
 		{	 0.0, -1.0,  0.0	},
 		{	 0.0, -1.0,  0.0	}
 	};
-
-	Vector3f colors[] = 
-	{
-		// Top Light
-		{	 1.0,  1.0,  1.0	},
-	 	{	 1.0,  1.0,  1.0	},
-		{	 1.0,  1.0,  1.0	},
-		{	 1.0,  1.0,  1.0	}
-	};
 	
 	sceneData.toplight.vertices = malloc(sizeof(Vector3f) * 4);
-	sceneData.toplight.colors = malloc(sizeof(Vector3f) * 4);
 	sceneData.toplight.normals = malloc(sizeof(Vector3f) * 4);
 	sceneData.toplight.indices = malloc(sizeof(GLubyte) * 4);
 
@@ -313,7 +290,6 @@ void loadTopLight(float dx, float dy, float dz)
 	for (i = 0; i < 4; i++)
 	{
 		sceneData.toplight.vertices[i] = vertices[i];
-		sceneData.toplight.colors[i] = colors[i];
 		sceneData.toplight.normals[i] = normals[i];
 		sceneData.toplight.indices[i] = i;
 	}
@@ -322,20 +298,17 @@ void loadTopLight(float dx, float dy, float dz)
 float myrand() { return ((float)(rand() % 100000)/100000.0 - 0.5); }
 
 // flag - 0 = render with shadows, 1 = render without shadows
-void display(int flag) 
+void display() 
 {
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
-	glEnableClientState(GL_COLOR_ARRAY);
-	glUseProgram(0);
-
-	Vector3f lightJitter = {myrand()*0.4, myrand()*0.07, myrand()*0.07}; //myrand()*0.05};
+	Vector3f lightJitter = {myrand()*0.4, myrand()*0.07, myrand()*0.07};
 	Vector3f aaJitter = {myrand(), myrand(), myrand()};
 	aaJitter = mul(aaJitter, 0.003);
 
-	// Render light
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+	// Render Light	
+	glUseProgram(0);
 	glVertexPointer(3, GL_FLOAT, 0, sceneData.toplight.vertices);
-	glColorPointer(3, GL_FLOAT, 0, sceneData.toplight.colors);
 	glNormalPointer(GL_FLOAT, 0, sceneData.toplight.normals);
 	glPushMatrix();
 		glTranslatef(lightJitter.y, 0.9999, lightJitter.z);
@@ -345,25 +318,25 @@ void display(int flag)
 
 	glUseProgram(phongProgramID);
 
-	if (!flag) glUseProgram(boxShaderProgramID);
-	// Load box data into GPU
+	// Render Box
+	glUseProgram(boxShaderProgramID);
+	glEnableClientState(GL_COLOR_ARRAY);
 	glVertexPointer(3, GL_FLOAT, 0, sceneData.box.vertices);
 	glColorPointer(3, GL_FLOAT, 0, sceneData.box.colors);
 	glNormalPointer(GL_FLOAT, 0, sceneData.box.normals);
-
 	glPushMatrix();
 		glTranslatef(aaJitter.x, aaJitter.y, aaJitter.z);
 		glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, sceneData.box.indices);
 	glPopMatrix();
 
-	if (!flag) glUseProgram(teapotShaderProgramID);
-
-	// Load teapot data into GPU
+	// Render Teapot
+	glUseProgram(teapotShaderProgramID);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, floorTextureID);
 	glVertexPointer(3, GL_FLOAT, 0, sceneData.teapot.vertices);
 	glNormalPointer(GL_FLOAT, 0, sceneData.teapot.normals);
+	glTexCoordPointer(2, GL_FLOAT, 0, sceneData.teapot.texCoords);
 	glDisableClientState(GL_COLOR_ARRAY);
-
-	// Stores the current matrix configuration to allow for local transformations
 	glPushMatrix();
 		glTranslatef(aaJitter.x, aaJitter.y-1.0, aaJitter.z);
 		glRotatef(50.0, 0.0, 1.0, 0.0);
@@ -374,53 +347,39 @@ void display(int flag)
 	glFlush();
 }
 
-void update() {}
-void input(unsigned char key, int x, int y) 
-{
-	if (key) exit(0);
+void input(unsigned char key, int x, int y) { if (key=='q') exit(0); }
+
+void createLights(Vector3f pos, Vector3f color) {
+	light0_diffuse[0] = color.x; 
+	light0_diffuse[1] = color.y; 
+	light0_diffuse[2] = color.z; 
+	light0_diffuse[3] = 1.0;
+
+	light0_position[0] = pos.x;
+	light0_position[1] = pos.y; 
+	light0_position[2] = pos.z; 
+	light0_position[3] = 1.0;
+
+	float light0_specular[] = { color.x, color.y, color.z, 1.0 };
+
+	glLightfv(GL_LIGHT0,GL_DIFFUSE,light0_diffuse);
+	glLightfv(GL_LIGHT0,GL_SPECULAR,light0_specular);
+	glLightf(GL_LIGHT0,GL_CONSTANT_ATTENUATION,0.5);
+	glLightf(GL_LIGHT0,GL_LINEAR_ATTENUATION,0.001);
+	glLightf(GL_LIGHT0,GL_QUADRATIC_ATTENUATION,0.0001);
+	glLightfv(GL_LIGHT0,GL_POSITION,light0_position);
+
+	glEnable(GL_LIGHT0);
 }
 
-int createLights(Vector3f pos, Vector3f color) {
-  // Fill light
-  //float light0_ambient[] = { 0.3, 0.3, 0.3, 0.0 };
-  light0_diffuse[0] = color.x, light0_diffuse[1] = color.y, light0_diffuse[2] = color.z, light0_diffuse[3] = 1.0;
-  light0_position[0] = pos.x, light0_position[1] = pos.y, light0_position[2] = pos.z, light0_position[3] = 1.0;
-  float light0_specular[] = { color.x, color.y, color.z, 1.0 };
+void createViewVolume(Vector3f ep, Vector3f vp) {
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(45.0, (float)(XRES)/(float)(YRES), 0.1, 20.0);
 
-  // Turn off scene default ambient.
-  //glLightModelfv(GL_LIGHT_MODEL_AMBIENT,light0_ambient);
-
-  // Make specular correct for spots.
-  glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,1);
-
-  //glLightfv(GL_LIGHT0,GL_AMBIENT,light0_ambient);
-  glLightfv(GL_LIGHT0,GL_DIFFUSE,light0_diffuse);
-  glLightfv(GL_LIGHT0,GL_SPECULAR,light0_specular);
-  //glLightf(GL_LIGHT0,GL_SPOT_EXPONENT,1.0);
-  //glLightf(GL_LIGHT0,GL_SPOT_CUTOFF,180.0);
-  glLightf(GL_LIGHT0,GL_CONSTANT_ATTENUATION,0.5);
-  glLightf(GL_LIGHT0,GL_LINEAR_ATTENUATION,0.001);
-  glLightf(GL_LIGHT0,GL_QUADRATIC_ATTENUATION,0.0001);
-  glLightfv(GL_LIGHT0,GL_POSITION,light0_position);
-  glLightfv(GL_LIGHT0,GL_SPOT_DIRECTION,light0_direction);
-
-  glEnable(GL_LIGHT0);
-  return 0;
-}
-
-int createViewVolume(Vector3f ep, Vector3f vp) {
-  // Specify shape and size of the view volume.
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity(); //load identity matrix into GL_PROJECTION
-  gluPerspective(45.0, 1.0, 0.1, 20.0);
-
-  // Specify the position for the view volume
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
-  
-  gluLookAt(ep.x, ep.y, ep.z, vp.x, vp.y, vp.z, 0.0, 1.0, 0.0);
-
-  return 0;
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt(ep.x, ep.y, ep.z, vp.x, vp.y, vp.z, 0.0, 1.0, 0.0);
 }
 
 char *readShader(char *filename)
@@ -551,7 +510,7 @@ void save_matrix(float *ep, float *vp)
 void set_uniform(int p)
 {
 	int location;
-	location = glGetUniformLocation(p,"mytexture");
+	location = glGetUniformLocation(p,"depthTexture");
 	glUniform1i(location,6);
 }
 
@@ -582,7 +541,7 @@ void renderWithShadows(Vector3f lightPosition, Vector3f lightColor)
 
 		Vector3f l0_pos = {light0_position[0], light0_position[1], light0_position[2]};
 		createLights(l0_pos, lightColor);
-		display(0);
+		display();
 	glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
 
 	// Store this viewpoint matrix into texture matrix 7
@@ -590,18 +549,19 @@ void renderWithShadows(Vector3f lightPosition, Vector3f lightColor)
 
 	glUseProgram(boxShaderProgramID);
 	set_uniform(boxShaderProgramID);
+	set_uniform(teapotShaderProgramID);
 
 	glActiveTexture(GL_TEXTURE6);
 	glBindTexture(GL_TEXTURE_2D, 1);
 
-	eyepoint[0] = 0.0, eyepoint[1] = 0.0, eyepoint[2] = -3.0;
+	eyepoint[0] = 0.0, eyepoint[1] = 0.0, eyepoint[2] = -2.9;
 	viewpoint[0] = 0.0, viewpoint[1] = 0.0, viewpoint[2] = 0.0;
 
 	ep.x = eyepoint[0], ep.y = eyepoint[1], ep.z = eyepoint[2];
 	vp.x = viewpoint[0], vp.y = viewpoint[1], vp.z = viewpoint[2];
 	createViewVolume(ep, vp);
 	createLights(l0_pos, lightColor);
-	display(0);
+	display();
 }
 
 int trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f v2)
@@ -612,16 +572,10 @@ int trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f 
 	if (lightPosition.x != RAYNOTHIT)
 	{
 		lightPosition = mul(lightPosition, 0.8);
-
-		if (lightPosition.y <= 0.0) lightPosition.y = 0.0;
-
-		color = sceneData.box.colors[j];
-		color = mul(color, 0.5); // Dampen the colors
-
-
+		if (lightPosition.y <= 0.) lightPosition.y = 0.5;
+		color = mul(sceneData.box.colors[j], 0.5);
 		renderWithShadows(lightPosition, color);
 
-		//glAccum(GL_ACCUM, 1.0/(float)N * 0.7);
 		glAccum(GL_ACCUM, 1.0/(float)N);
 		return 1;
 	}
@@ -633,78 +587,16 @@ void renderScene()
 	int N = 1000;
 	glClear(GL_ACCUM_BUFFER_BIT);
 
-/*
-	Vector3f lightPos = {0.0, 0.0, 0.0};
-	Vector3f lightColor = {1.0, 1.0, 0.8};
-	Vector3f eyePos = {0.0, 0.0, -3.0};
-	Vector3f viewPos = {0.0, 0.0, 3.0};
-
-	createViewVolume(eyePos, viewPos);
-	createLights(lightPos, lightColor);
-	display(1);
-	glAccum(GL_ACCUM, 1.0 * 0.3);
-*/
-
 	int i;
 	for (i = 0; i < N; i++)
 	{
 		Vector3f currentRay = normalize(halton(i));
 
 		Vector3f v0, v1, v2;
-		int hitTeapot = 0;
 
 		int j;
-
-		// Make sure the ray is at least a candidate to hit the teapot (pruning)
-		if (currentRay.y < 0.0 && abs(currentRay.x) < 0.4 && abs(currentRay.z) < 0.4) {
-
-			// Take this out if you want to render A LOT faster
-			for (j = 0; j < sceneData.vertexCount; j++)
-			{
-				if (sceneData.teapot.normals[j].y >= 0.0) {
-					v0 = sceneData.teapot.vertices[j];
-					v1 = sceneData.teapot.vertices[j+1];
-					v2 = sceneData.teapot.vertices[j+2];
-					if (trace(j, N, currentRay, v0, v1, v2)) {
-						hitTeapot = 1;
-						break;
-					}
-					v0 = sceneData.teapot.vertices[+2];
-					v1 = sceneData.teapot.vertices[j+3];
-					v2 = sceneData.teapot.vertices[j];
-					if (trace(j, N, currentRay, v0, v1, v2))
-					{
-						hitTeapot = 1;
-						break;
-					}
-				}
-			}
-		}
-
-		if (hitTeapot) continue;
-
 		for (j = 0; j < 20; j+=4)
 		{
-			//Pruning
-			switch(j) {
-				//right
-				case 4:
-				case 5:
-				case 6:
-				case 7:
-					if (currentRay.x > 0.0) continue;
-					break;
-				//left
-				case 8:
-				case 9:
-				case 10:
-				case 11:
-					if (currentRay.x < 0.0) continue;
-					break;
-				default:
-					break;
-			}
-			
 			v0 = sceneData.box.vertices[j];
 			v1 = sceneData.box.vertices[j+1];
 			v2 = sceneData.box.vertices[j+2];
@@ -728,20 +620,15 @@ void prepareFramebuffer()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
-	// Declare size and type of texture; it has no data initially (last arg 0).
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, XRES, YRES, 0, 
 		GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0);
-	// Back to default.
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	GLuint frameBufferID;
 	glGenFramebuffers(1, &frameBufferID);
 	glBindFramebufferEXT(GL_FRAMEBUFFER,frameBufferID);
-	glDrawBuffer(GL_NONE); // No color buffers will be written.
-	// Attach this framebuffer (id #1 above) to texture (id #1 is penultimate arg),
-	// so that we can perform an offscreen render-to-texture.
+	glDrawBuffer(GL_NONE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,1,0);
-	// Back to default.
 	glBindFramebufferEXT(GL_FRAMEBUFFER,0);
 }
 
@@ -772,13 +659,18 @@ int loadTexture(const char *filename) {
 	texture_bytes = (unsigned char *)calloc(3,im_size);
 	fread(texture_bytes,3,im_size,fptr);
 	fclose(fptr);
+
 	glGenTextures(1, &floorTextureID);
 	glBindTexture(GL_TEXTURE_2D, floorTextureID);
+
 	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,im_width,im_height,0,GL_RGB,
 	           GL_UNSIGNED_BYTE,texture_bytes);
 	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
 	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
 	cfree(texture_bytes);
+
+	int location = glGetUniformLocation(boxShaderProgramID, "floorTexture");
+	glUniform1i(location, 0);
 
 	return 0;
 }
@@ -791,17 +683,18 @@ int main(int argc, char **argv)
 	prepareFramebuffer();
 
 	printf("Loading environment...\n");
-	loadTopLight(2.0, 2.0, 2.0);
+	loadTopLight(2.0, 2.0);
 	loadTeapot("teapot.605.obj");
 	loadBox(2.0, 2.0, 2.0);
 
 	printf("Loading Shaders...\n");
 	boxShaderProgramID = loadShaders("boxShader.vert", "boxShader.frag");
 	teapotShaderProgramID = loadShaders("teapotShader.vert", "teapotShader.frag");
-	phongProgramID = loadShaders("phong.vert", "phong.frag");
+
+	printf("Loading textures...\n");
+	loadTexture("white_marble_75.ppm");
 
 	glutDisplayFunc(renderScene);
-	glutIdleFunc(update);
 	glutKeyboardFunc(input);
 
 	glutMainLoop();

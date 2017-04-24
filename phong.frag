@@ -19,7 +19,9 @@ void main()
 	diffuse_color *= max(dot(N,L),0.2);
 	specular_color *= ((shininess+2.0)/(8.0*pi))*pow(max(dot(H,N),0.0),shininess);
 
-	float kc = 0.4, kl = 0.05, kq = 0.01;
+	float kc = gl_LightSource[0].constantAttenuation;
+	float kl = gl_LightSource[0].linearAttenuation;
+	float kq = gl_LightSource[0].quadraticAttenuation;
 	float d = length(gl_LightSource[0].position);
 	float atten = 1.0 / (kc + kl*d + kq*d*d);
 

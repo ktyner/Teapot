@@ -39,9 +39,13 @@ Vector3f add(Vector3f left, Vector3f right)
 	return result;
 }
 
-void printVector(Vector3f vec)
+Vector3f normalize(Vector3f vec)
 {
-	printf("(%f, %f, %f)\n", vec.x, vec.y, vec.z);
+	float mag = sqrt(pow(vec.x, 2) + pow(vec.y, 2) + pow(vec.z, 2));
+	vec.x /= mag;
+	vec.y /= mag;
+	vec.z /= mag;
+	return vec;
 }
 
 #endif
