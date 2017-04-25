@@ -29,7 +29,7 @@ void main()
 		clarity = vec4(0.3, 0.3, 0.0, 0.0);
 	}
 
-	vec4 tcolor = texture2D(floorTexture, gl_TexCoord[0].st);
+	vec4 floorcolor = texture2D(floorTexture, gl_TexCoord[0]);
 
 	diffuse_color *= clarity*max(dot(N,L),0.2);
 	specular_color *= clarity*((shininess+2.0)/(8.0*pi))*pow(max(dot(H,N),0.0),shininess);
@@ -41,4 +41,7 @@ void main()
 	float atten = 1.0 / (kc + kl*d + kq*d*d);
 
 	gl_FragColor = atten*(diffuse_color + specular_color);
+	if (abs(colorAttribute.z - 1.0) < 0.1  && abs(ec_vnormal.y - 1.0) < 0.1) {
+		gl_FragColor *= floorcolor;
+	}
 }
