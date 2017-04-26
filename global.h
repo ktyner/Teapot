@@ -5,8 +5,7 @@
 
 typedef struct teapot {
 	int curV, curN, curT, curB, curTex, curIndex;
-	Vector3f *vertices, *normals, *tangents, *bitangents;
-	Vector2f *texCoords;
+	Vector3f *vertices, *normals;
 	GLuint *indices;
 } TeapotData;
 
@@ -29,10 +28,10 @@ typedef struct data {
 } SceneData;
 
 SceneData sceneData;
-unsigned int boxShaderProgramID, teapotShaderProgramID, phongProgramID;
+unsigned int boxShaderProgramID, teapotShaderProgramID;
 unsigned int floorTextureID, wallTextureID, depthTextureID;
 GLfloat light0_position[4] = {0.0, 0.99, 0.0, 1.0};
-GLfloat light0_direction[] = {-0.8, 0.0, 0.0};
+GLfloat light0_direction[4];
 GLfloat light0_diffuse[4];
 
 #endif

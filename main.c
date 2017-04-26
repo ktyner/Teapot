@@ -28,11 +28,13 @@ void init(int argc, char **argv)
 	glutInitWindowSize(XRES, YRES);
 	glutInitWindowPosition(1000, 200);
 	glutCreateWindow("Hopefully a teapot");
-	glClearColor(1.0, 0.0, 0.7, 1.0);
+	//glClearColor(1.0, 0.0, 0.7, 1.0);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glEnable(GL_DEPTH_TEST);
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
+
 }
 
 float myrand() { return ((float)(rand() % 100000)/100000.0 - 0.5); }
@@ -45,37 +47,34 @@ void display()
 
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	// Render Light	
-	glUseProgram(0);
-	glVertexPointer(3, GL_FLOAT, 0, sceneData.toplight.vertices);
-	glNormalPointer(GL_FLOAT, 0, sceneData.toplight.normals);
-	glPushMatrix();
-		glTranslatef(lightJitter.y, 0.9999, lightJitter.z);
-		glScalef(1.0-lightJitter.x, 1.0-lightJitter.x, 1.0-lightJitter.x);
-		glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, sceneData.toplight.indices);
-	glPopMatrix();
-
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	// Render Light
+	glDisableClientState(GL_NORMAL_ARRAY);
+		glUseProgram(0);
+		glVertexPointer(3, GL_FLOAT, 0, sceneData.toplight.vertices);
+		glPushMatrix();
+			glTranslatef(lightJitter.y, 0.9999, lightJitter.z);
+			glScalef(1.0-lightJitter.x, 1.0-lightJitter.x, 1.0-lightJitter.x);
+			glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, sceneData.toplight.indices);
+		glPopMatrix();
+	glEnableClientState(GL_NORMAL_ARRAY);
 
 	// Render Box
-	glUseProgram(boxShaderProgramID);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, floorTextureID);
-
-	glVertexPointer(3, GL_FLOAT, 0, sceneData.box.vertices);
-	glColorPointer(3, GL_FLOAT, 0, sceneData.box.colors);
-	glNormalPointer(GL_FLOAT, 0, sceneData.box.normals);
-	glTexCoordPointer(2, GL_FLOAT, 0, sceneData.box.texCoords);
-	glEnableClientState(GL_COLOR_ARRAY);
-	glPushMatrix();
-		glTranslatef(aaJitter.x, aaJitter.y, aaJitter.z);
-		glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, sceneData.box.indices);
-	glPopMatrix();
-
-	glActiveTexture(GL_TEXTURE0);
-	glDisable(GL_TEXTURE_2D);
-
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glUseProgram(boxShaderProgramID);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, floorTextureID);
+			glVertexPointer(3, GL_FLOAT, 0, sceneData.box.vertices);
+			glColorPointer(3, GL_FLOAT, 0, sceneData.box.colors);
+			glNormalPointer(GL_FLOAT, 0, sceneData.box.normals);
+			glTexCoordPointer(2, GL_FLOAT, 0, sceneData.box.texCoords);
+			glEnableClientState(GL_COLOR_ARRAY);
+				glPushMatrix();
+					glTranslatef(aaJitter.x, aaJitter.y, aaJitter.z);
+					glDrawElements(GL_QUADS, 20, GL_UNSIGNED_BYTE, sceneData.box.indices);
+				glPopMatrix();
+			glDisableClientState(GL_COLOR_ARRAY);
+		glActiveTexture(GL_TEXTURE0);
+		glDisable(GL_TEXTURE_2D);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
 	// Render Teapot
@@ -89,22 +88,14 @@ void display()
 		glScalef(0.5, 0.5, 0.5);
 		glDrawElements(GL_QUADS, sceneData.teapot.curIndex, GL_UNSIGNED_INT, sceneData.teapot.indices);
 	glPopMatrix();
-
 	glFlush();
 }
 
 void input(unsigned char key, int x, int y) { if (key=='q') exit(0); }
 
 void createLights(Vector3f pos, Vector3f color) {
-	light0_diffuse[0] = color.x; 
-	light0_diffuse[1] = color.y; 
-	light0_diffuse[2] = color.z; 
-	light0_diffuse[3] = 1.0;
-
-	light0_position[0] = pos.x;
-	light0_position[1] = pos.y; 
-	light0_position[2] = pos.z; 
-	light0_position[3] = 1.0;
+	light0_diffuse[0] = color.x, light0_diffuse[1] = color.y, light0_diffuse[2] = color.z, light0_diffuse[3] = 1.0;
+	light0_position[0] = pos.x,	light0_position[1] = pos.y, light0_position[2] = pos.z,	light0_position[3] = 1.0;
 
 	float light0_specular[] = { color.x, color.y, color.z, 1.0 };
 
@@ -131,7 +122,6 @@ void createViewVolume(Vector3f ep, Vector3f vp) {
 void save_matrix(float *ep, float *vp)
 {
 	glMatrixMode(GL_TEXTURE); 
-	// This must match the unit used in the vertex shader.
 	glActiveTexture(GL_TEXTURE7);
 	glLoadIdentity();
 	glTranslatef(0.0,0.0,-0.005);
@@ -151,6 +141,8 @@ void renderWithShadows(Vector3f lightPosition, Vector3f lightColor)
 		glUseProgram(0);
 
 		light0_position[0] = lightPosition.x, light0_position[1] = lightPosition.y, light0_position[2] = lightPosition.z;
+
+		// Point the light at the teapot, wherever the light is
 		light0_direction[0] = -light0_position[0];
 		light0_direction[1] = -1.0-light0_position[1];
 		light0_direction[2] = -light0_position[2];
@@ -173,6 +165,7 @@ void renderWithShadows(Vector3f lightPosition, Vector3f lightColor)
 	save_matrix(eyepoint, viewpoint);
 
 	glUseProgram(boxShaderProgramID);
+
 	int location;
 	location = glGetUniformLocation(boxShaderProgramID, "depthTexture");
 	glUniform1i(location, 6);
@@ -194,16 +187,17 @@ void renderWithShadows(Vector3f lightPosition, Vector3f lightColor)
 
 int trace(int j, int N, Vector3f currentRay, Vector3f v0, Vector3f v1, Vector3f v2)
 {
-	Vector3f color = {1.0, 1.0, 0.791};
+	Vector3f color;
 	Vector3f source = {0.0, 0.9, 0.0};
 	Vector3f lightPosition = getRayTriangleIntersectionPoint(source, currentRay, v0, v1, v2);
 	if (lightPosition.x != RAYNOTHIT)
 	{
 		lightPosition = mul(lightPosition, 0.8);
-		if (lightPosition.y <= 0.) lightPosition.y = 0.5;
+		// Move low light closer to the middle
+		if (lightPosition.y <= 0.0) lightPosition.y = 0.5 + myrand()*0.3;
 		color = mul(sceneData.box.colors[j], 0.5);
+		
 		renderWithShadows(lightPosition, color);
-
 		glAccum(GL_ACCUM, 1.0/(float)N);
 		return 1;
 	}
@@ -219,7 +213,6 @@ void renderScene()
 	for (i = 0; i < N; i++)
 	{
 		Vector3f currentRay = normalize(halton(i));
-
 		Vector3f v0, v1, v2;
 
 		// Only check collisions w/ box. 
@@ -245,7 +238,6 @@ void renderScene()
 void prepareFramebuffer()
 {
 	glGenTextures(1, &depthTextureID);
-	printf("Depth ID: %d\n", depthTextureID);
 	// Set properties of texture id #1.
 	glActiveTexture(GL_TEXTURE6);
 	glBindTexture(GL_TEXTURE_2D, depthTextureID);
@@ -298,9 +290,9 @@ int loadTexture(GLenum activeTexture, const char *filename, int textureID) {
 
 	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,im_width,im_height,0,GL_RGB,
 	           GL_UNSIGNED_BYTE,texture_bytes);
-	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-	cfree(texture_bytes);
+	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+	glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+	free(texture_bytes);
 
 	return 0;
 }
@@ -314,8 +306,7 @@ int main(int argc, char **argv)
 	glEnable(GL_TEXTURE_2D);
 
 	glGenTextures(1, &floorTextureID);
-	glGenTextures(1, &wallTextureID);
-	loadTexture(GL_TEXTURE0, "tile.ppm", floorTextureID);
+	loadTexture(GL_TEXTURE0, "floor.ppm", floorTextureID);
 
 	int location = glGetUniformLocation(boxShaderProgramID, "floorTexture");
 	glUniform1i(location, 0);

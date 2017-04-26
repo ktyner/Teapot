@@ -10,28 +10,15 @@ void loadTeapot(const char *objFile)
 	int texCount = 0;
 
 	while (fgets(line, sizeof(line), file))
-	{
 		if (line[0]+line[1] == 'v'+' ')
-		{
 			sceneData.vertexCount++;
-		}
-		else if (line[0]+line[1] == 'v'+'t') 
-		{
-			texCount++;
-		}
-	}
 
 	Vector3f *normals;
-	Vector2f *texCoords;
-	int nindex = 0, texindex = 0;
+	int nindex = 0;
 
 	normals = malloc(sizeof(Vector3f) * sceneData.vertexCount);
-	texCoords = malloc(sizeof(Vector2f) * texCount);
 	sceneData.teapot.vertices = malloc(sizeof(Vector3f) * sceneData.vertexCount);
 	sceneData.teapot.normals = malloc(sizeof(Vector3f) * sceneData.vertexCount);
-	sceneData.teapot.tangents = malloc(sizeof(Vector3f) * sceneData.vertexCount);
-	sceneData.teapot.bitangents = malloc(sizeof(Vector3f) * sceneData.vertexCount);
-	sceneData.teapot.texCoords = malloc(sizeof(Vector2f) * texCount);
 	sceneData.teapot.indices = malloc(sizeof(GLuint) * sceneData.vertexCount * 4);
 
 	rewind(file);
@@ -56,24 +43,10 @@ void loadTeapot(const char *objFile)
 					normals[nindex++] = normal;
 					break;
 				case 't':
-					lineData = strtok(line, " ");
-					Vector2f texCoord = {atof(strtok(NULL, " ")),
-										 atof(strtok(NULL, " "))};
-					texCoords[texindex++] = texCoord;
 					break;
 				case 'x':
-					lineData = strtok(line, " ");
-					Vector3f tangent = {atof(strtok(NULL, " ")),
-									    atof(strtok(NULL, " ")), 
-									    atof(strtok(NULL, " "))};
-					sceneData.teapot.tangents[sceneData.teapot.curT++] = tangent;
 					break;
 				case 'y':
-					lineData = strtok(line, " ");
-					Vector3f bitangent = {atof(strtok(NULL, " ")),
-									      atof(strtok(NULL, " ")), 
-									      atof(strtok(NULL, " "))};
-					sceneData.teapot.bitangents[sceneData.teapot.curB++] = bitangent;
 					break;
 				default:
 					break;
@@ -85,10 +58,7 @@ void loadTeapot(const char *objFile)
 				lineData = strtok(NULL, " /");
 				int currentVertexPointer = atoi(lineData)-1;
 				sceneData.teapot.indices[sceneData.teapot.curIndex++] = currentVertexPointer;
-				lineData = strtok(NULL, " /");
-				Vector2f currentTex = texCoords[atoi(lineData)-1];
-				sceneData.teapot.texCoords[currentVertexPointer] = currentTex;
-				lineData = strtok(NULL, " /");
+				lineData = strtok(NULL, " /"); lineData = strtok(NULL, " /");
 				Vector3f currentNormal = normals[atoi(lineData)-1];
 				sceneData.teapot.normals[currentVertexPointer] = currentNormal;
 			}
@@ -104,8 +74,8 @@ void loadBox(float dx, float dy, float dz)
 	dy /= 2.0;
 	dz /= 2.0;
 
-	Vector3f red = {1.0, 0.0, 0.0};
-	Vector3f green = {0.0, 1.0, 0.0};
+	Vector3f red = {0.49, 0.0, 1.0};
+	Vector3f green = {0.49, 1.0, 0.0};
 	Vector3f white = {1.0, 1.0, 1.0};
 
 	Vector3f vertices[] = 
@@ -242,25 +212,14 @@ void loadTopLight(float dx, float dz)
 		{	 dx/3.0,  0.0, -dz/3.0	},
 		{	 dx/3.0,  0.0,  dz/3.0	}
 	};
-
-	Vector3f normals[] =
-	{
-		// Top Light
-		{	 0.0, -1.0,  0.0	},
-		{	 0.0, -1.0,  0.0	},
-		{	 0.0, -1.0,  0.0	},
-		{	 0.0, -1.0,  0.0	}
-	};
 	
 	sceneData.toplight.vertices = malloc(sizeof(Vector3f) * 4);
-	sceneData.toplight.normals = malloc(sizeof(Vector3f) * 4);
 	sceneData.toplight.indices = malloc(sizeof(GLubyte) * 4);
 
 	int i;
 	for (i = 0; i < 4; i++)
 	{
 		sceneData.toplight.vertices[i] = vertices[i];
-		sceneData.toplight.normals[i] = normals[i];
 		sceneData.toplight.indices[i] = i;
 	}
 }

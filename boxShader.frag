@@ -16,6 +16,7 @@ void main()
 	float pi = 3.14159265;
 	float depthsample;
 	vec4 clarity = vec4(1.0,1.0,1.0,0.0);
+	
 
 	P = ec_vposition;
 	N = normalize(ec_vnormal);
@@ -31,6 +32,13 @@ void main()
 
 	vec4 floorcolor = texture2D(floorTexture, gl_TexCoord[0]);
 
+	// Add a small amount of contrast to the floor for a more appealing texture
+	float contrast = 0.2;
+	float factor = (1.01568*(contrast + 1.0)) / (1.01568 - contrast);
+	floorcolor.x = factor * (floorcolor.x - 0.5) + 0.5;
+	floorcolor.y = factor * (floorcolor.y - 0.5) + 0.5;
+	floorcolor.z = factor * (floorcolor.z - 0.5) + 0.5;
+
 	diffuse_color *= clarity*max(dot(N,L),0.2);
 	specular_color *= clarity*((shininess+2.0)/(8.0*pi))*pow(max(dot(H,N),0.0),shininess);
 
@@ -41,6 +49,8 @@ void main()
 	float atten = 1.0 / (kc + kl*d + kq*d*d);
 
 	gl_FragColor = atten*(diffuse_color + specular_color);
+
+	// Fun, hacky way of checking if this is the bottom face
 	if (abs(colorAttribute.z - 1.0) < 0.1  && abs(ec_vnormal.y - 1.0) < 0.1) {
 		gl_FragColor *= floorcolor;
 	}

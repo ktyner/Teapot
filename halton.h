@@ -18,14 +18,9 @@ float phi(int b, int i)
 
 Vector3f halton(int i)
 {
-	float az, el;
-	Vector3f result;
-	
-	az = 2.0*PI*phi(2, i);
-	el = asin(phi(3, i));
-	result.x = -sin(az)*cos(el);
-	result.y = sin(el);
-	result.z = cos(az)*cos(el);
+	float az = 2.0*PI*phi(2, i);
+	float el = asin(phi(3, i));
+	Vector3f result = { -sin(az)*cos(el), sin(el), cos(az)*cos(el) };
 	return result;
 }
 
