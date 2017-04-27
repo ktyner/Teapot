@@ -50,7 +50,7 @@ void main()
 
 	gl_FragColor = atten*(diffuse_color + specular_color);
 
-	// Fun, hacky way of checking if this is the bottom face
+	// Hacky way of checking if this fragment is on the bottom face
 	if (abs(colorAttribute.z - 1.0) < 0.1  && abs(ec_vnormal.y - 1.0) < 0.1) {
 		gl_FragColor *= floorcolor;
 	}

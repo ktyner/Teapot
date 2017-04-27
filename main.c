@@ -28,7 +28,6 @@ void init(int argc, char **argv)
 	glutInitWindowSize(XRES, YRES);
 	glutInitWindowPosition(1000, 200);
 	glutCreateWindow("Hopefully a teapot");
-	//glClearColor(1.0, 0.0, 0.7, 1.0);
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glEnable(GL_DEPTH_TEST);
 
@@ -57,6 +56,8 @@ void display()
 			glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, sceneData.toplight.indices);
 		glPopMatrix();
 	glEnableClientState(GL_NORMAL_ARRAY);
+
+	// Not setting materials here because default values look the best
 
 	// Render Box
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -238,7 +239,6 @@ void renderScene()
 void prepareFramebuffer()
 {
 	glGenTextures(1, &depthTextureID);
-	// Set properties of texture id #1.
 	glActiveTexture(GL_TEXTURE6);
 	glBindTexture(GL_TEXTURE_2D, depthTextureID);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -297,11 +297,8 @@ int loadTexture(GLenum activeTexture, const char *filename, int textureID) {
 	return 0;
 }
 
-int main(int argc, char **argv) 
+void load_textures()
 {
-	init(argc, argv);
-
-	printf("Loading textures...\n");
 	glActiveTexture(GL_TEXTURE0);
 	glEnable(GL_TEXTURE_2D);
 
@@ -310,18 +307,29 @@ int main(int argc, char **argv)
 
 	int location = glGetUniformLocation(boxShaderProgramID, "floorTexture");
 	glUniform1i(location, 0);
+}
 
-	printf("Preparing Framebuffer...\n");
-	prepareFramebuffer();
-
-	printf("Loading environment...\n");
+void load_geom()
+{
 	loadTopLight(2.0, 2.0);
 	loadTeapot("teapot.605.obj");
 	loadBox(2.5, 2.0, 2.0);
+}
 
-	printf("Loading Shaders...\n");
+void load_shaders()
+{
 	boxShaderProgramID = loadShaders("boxShader.vert", "boxShader.frag");
 	teapotShaderProgramID = loadShaders("teapotShader.vert", "teapotShader.frag");
+}
+
+int main(int argc, char **argv) 
+{
+	init(argc, argv);
+	
+	load_textures();
+	prepareFramebuffer();
+	load_geom();
+	load_shaders();
 
 	glutDisplayFunc(renderScene);
 	glutKeyboardFunc(input);

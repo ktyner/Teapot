@@ -8,7 +8,7 @@ void main()
 	
 	vec3 P, N, L, V, H;
 	vec4 pccoords;
-	vec4 diffuse_color = gl_LightSource[0].diffuse;
+	vec4 diffuse_color = gl_FrontMaterial.diffuse * gl_LightSource[0].diffuse;
 	vec4 specular_color = gl_FrontMaterial.specular * gl_LightSource[0].specular; 
 	float shininess = gl_FrontMaterial.shininess;
 	float pi = 3.14159265;
